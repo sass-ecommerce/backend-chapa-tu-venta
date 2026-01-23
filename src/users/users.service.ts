@@ -26,15 +26,17 @@ export class UsersService {
       };
 
       const newUser = this.usersRepository.create(userData);
-      await this.usersRepository.save(newUser);
+      const result = await this.usersRepository.save(newUser);
+
+      console.log('[UsersService][create][result]', result);
+
       return { ok: true };
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error.code === '23505') {
-        throw new BadRequestException(
-          'User with this email or clerk ID already exists',
-        );
-      }
+      console.error('[UsersService][create][error]', error);
+
+      throw new BadRequestException(
+        'User with this email or clerk ID already exists',
+      );
     }
   }
 }
