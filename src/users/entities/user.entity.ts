@@ -1,10 +1,4 @@
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'users' })
 export class User {
@@ -44,10 +38,4 @@ export class User {
     name: 'update_at',
   })
   updateAt: Date;
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  normalizeEmail() {
-    this.email = this.email.toLowerCase().trim();
-  }
 }
