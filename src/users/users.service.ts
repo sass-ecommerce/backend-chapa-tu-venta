@@ -17,7 +17,7 @@ export class UsersService {
     try {
       const userData = {
         clerkId: createUserDto.data.id,
-        email: createUserDto.data.email_addresses.find(
+        email: createUserDto.data.email_addresses?.find(
           (email) => email.id === createUserDto.data.primary_email_address_id,
         )?.email_address,
         firstName: createUserDto.data.first_name,
