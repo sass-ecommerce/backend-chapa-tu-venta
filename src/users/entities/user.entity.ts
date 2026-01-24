@@ -47,10 +47,4 @@ export class User {
     name: 'update_at',
   })
   updateAt: Date;
-
-  // @BeforeInsert()
-  // @BeforeUpdate()
-  // normalizeEmail() {
-  //   this.email = this.email.toLowerCase().trim();
-  // }
 }

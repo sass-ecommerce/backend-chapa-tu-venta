@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEmail,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsString,
@@ -10,9 +11,11 @@ import {
 
 class EmailAddressDto {
   @IsString()
+  @IsNotEmpty()
   id: string;
 
   @IsEmail()
+  @IsNotEmpty()
   email_address: string;
 }
 
@@ -28,8 +31,18 @@ class ExternalAccountDto {
 
 class ClerkUserDataDto {
   @IsString()
+  @IsNotEmpty()
   id: string;
 
+  // Todos los demás campos de Clerk sin validación específica
+  backup_code_enabled?: boolean;
+  banned?: boolean;
+  create_organization_enabled?: boolean;
+  create_organizations_limit?: number | null;
+  created_at?: number;
+  delete_self_enabled?: boolean;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EmailAddressDto)
