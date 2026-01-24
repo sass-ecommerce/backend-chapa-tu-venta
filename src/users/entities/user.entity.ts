@@ -1,20 +1,17 @@
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid', { name: 'id_internal' })
   idInternal: string;
 
+  @Column('varchar', { name: 'external_auth_id', nullable: true })
+  externalAuthId: string;
+
   @Column('varchar', { unique: true, name: 'clerk_id', nullable: false })
   clerkId: string;
 
-  @Column('varchar', { name: 'first_name', nullable: false })
+  @Column('varchar', { name: 'first_name', nullable: true })
   firstName: string;
 
   @Column('varchar', { name: 'last_name', nullable: true })
@@ -32,6 +29,12 @@ export class User {
   @Column('varchar', { default: 'user' })
   role: string;
 
+  @Column('varchar', { name: 'auth_method', nullable: true })
+  authMethod: string; // oauth_google, oauth_tiktok, password, etc.
+
+  @Column('varchar', { name: 'provider_user_id', nullable: true })
+  providerUserId: string; // El ID real de Google o TikTok (ej: 113325539...)
+
   @Column('timestamp', {
     default: () => 'CURRENT_TIMESTAMP',
     name: 'create_at',
@@ -45,9 +48,9 @@ export class User {
   })
   updateAt: Date;
 
-  @BeforeInsert()
-  @BeforeUpdate()
-  normalizeEmail() {
-    this.email = this.email.toLowerCase().trim();
-  }
+  // @BeforeInsert()
+  // @BeforeUpdate()
+  // normalizeEmail() {
+  //   this.email = this.email.toLowerCase().trim();
+  // }
 }

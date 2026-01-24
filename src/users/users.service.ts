@@ -1,40 +1,64 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import { InjectModel } from '@nestjs/mongoose';
+import { UserLog } from './schema/user-log.schema';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private usersRepository: Repository<User>,
+    @InjectModel(UserLog.name) private userLogModel: Model<UserLog>,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    if (createUserDto.type !== 'user.created') {
-      throw new BadRequestException('Unsupported event type');
-    }
+    const { data, instance_id, type } = createUserDto;
+
+    const log = await this.userLogModel.findOneAndUpdate(
+      { clerkId: data.id, eventType: type },
+      {
+        rawJson: createUserDto,
+        externalAuthId: instance_id,
+        statusProcess: 1,
+        $inc: { retryCount: 1 },
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { upsert: true, new: true },
+    );
+
     try {
+      const externalAcount = data.external_accounts?.[0];
+      const emailAddress =
+        data.email_addresses.find(
+          (email) => email.id === data.primary_email_address_id,
+        )?.email_address || '';
+
       const userData = {
-        clerkId: createUserDto.data.id,
-        email: createUserDto.data.email_addresses.find(
-          (email) => email.id === createUserDto.data.primary_email_address_id,
-        )?.email_address,
-        firstName: createUserDto.data.first_name,
-        lastName: createUserDto.data.last_name || '',
-        imageUrl: createUserDto.data.image_url,
+        clerkId: data.id,
+        email: emailAddress.toLowerCase().trim(),
+        firstName: data?.first_name || '',
+        lastName: data?.last_name || '',
+        imageUrl: data?.image_url || '',
+        externalAuthId: instance_id,
+        authMethod: externalAcount?.provider || 'email_password',
+        providerUserId: externalAcount?.provider_user_id || '',
       };
 
-      const newUser = this.usersRepository.create(userData);
-      await this.usersRepository.save(newUser);
+      await this.usersRepository.upsert(userData, ['clerkId']);
+
+      await log.updateOne({ statusProcess: 2, errorMessage: '' }); // Mark as Completed
+
       return { ok: true };
     } catch (error) {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (error.code === '23505') {
-        throw new BadRequestException(
-          'User with this email or clerk ID already exists',
-        );
-      }
+      await log.updateOne({ statusProcess: 3, errorMessage: error.message });
+
+      console.error(`[Webhook Error] User: id: ${data.id} - error: ${error}`);
+
+      throw new InternalServerErrorException('Check server logs for details');
     }
   }
 }
