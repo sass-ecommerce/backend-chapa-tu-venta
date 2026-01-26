@@ -20,7 +20,7 @@ export class User {
   @Column('varchar', { unique: true, nullable: false })
   email: string;
 
-  @Column('text', { name: 'image_url', nullable: true, default: '' })
+  @Column('text', { name: 'image_url', nullable: true })
   imageUrl: string;
 
   @Column('boolean', { default: true })

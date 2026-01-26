@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import { InjectModel } from '@nestjs/mongoose';
 import { UserLog } from './schema/user-log.schema';
 import { Model } from 'mongoose';
+import { StatusProcess } from './interface/status-process.interface';
 
 @Injectable()
 export class UsersService {
@@ -22,7 +23,7 @@ export class UsersService {
       {
         rawJson: createUserDto,
         externalAuthId: instance_id,
-        statusProcess: 1,
+        statusProcess: StatusProcess.Pending,
         $inc: { retryCount: 1 },
         $setOnInsert: { createdAt: new Date() },
       },
@@ -31,30 +32,35 @@ export class UsersService {
 
     try {
       const externalAcount = data.external_accounts?.[0];
-      const emailAddress =
-        data.email_addresses.find(
-          (email) => email.id === data.primary_email_address_id,
-        )?.email_address || '';
+      const emailAddress = data.email_addresses?.find(
+        (email) => email.id === data.primary_email_address_id,
+      )?.email_address;
 
       const userData = {
         clerkId: data.id,
-        email: emailAddress.toLowerCase().trim(),
-        firstName: data?.first_name || '',
-        lastName: data?.last_name || '',
-        imageUrl: data?.image_url || '',
+        email: emailAddress?.toLowerCase().trim(),
+        firstName: data?.first_name,
+        lastName: data?.last_name,
+        imageUrl: data?.image_url,
         externalAuthId: instance_id,
         authMethod: externalAcount?.provider || 'email_password',
-        providerUserId: externalAcount?.provider_user_id || '',
+        providerUserId: externalAcount?.provider_user_id,
       };
 
       await this.usersRepository.upsert(userData, ['clerkId']);
 
-      await log.updateOne({ statusProcess: 2, errorMessage: '' }); // Mark as Completed
+      await log.updateOne({
+        statusProcess: StatusProcess.Completed,
+        errorMessage: '',
+      });
 
-      return { ok: true };
+      return { completed: true };
     } catch (error) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      await log.updateOne({ statusProcess: 3, errorMessage: error.message });
+      await log.updateOne({
+        statusProcess: StatusProcess.Error,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        errorMessage: error.message,
+      });
 
       console.error(`[Webhook Error] User: id: ${data.id} - error: ${error}`);
 
