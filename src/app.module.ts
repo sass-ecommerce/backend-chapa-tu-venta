@@ -10,6 +10,7 @@ import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { SeedModule } from './seed/seed.module';
+import { StoresModule } from './stores/stores.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { SeedModule } from './seed/seed.module';
     CommonModule,
     ProductsModule,
     SeedModule,
+    StoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],
