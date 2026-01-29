@@ -8,6 +8,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
+import { ProductsModule } from './products/products.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { databaseConfig } from './config/configuration';
     }),
     UsersModule,
     CommonModule,
+    ProductsModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
