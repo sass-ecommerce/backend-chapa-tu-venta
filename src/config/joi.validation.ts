@@ -26,7 +26,11 @@ export const ValidationSchema = Joi.object({
   CLERK_PUBLISHABLE_KEY: Joi.string()
     .required()
     .description('Clerk publishable key'),
+
+  // CORS Configuration (opcional - solo para web apps)
   ALLOWED_ORIGINS: Joi.string()
-    .required()
-    .description('Comma-separated list of allowed origins for CORS'),
+    .optional()
+    .description(
+      'Comma-separated list of allowed origins for CORS (only needed for web apps)',
+    ),
 });
