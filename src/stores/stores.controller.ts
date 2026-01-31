@@ -1,14 +1,22 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
+import { ClerkAuthGuard } from 'src/auth/guards/clerk.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { JwtPayload } from '@clerk/types';
 
 @Controller('stores')
 export class StoresController {
   constructor(private readonly storesService: StoresService) {}
 
   @Post()
-  create(@Body() createStoreDto: CreateStoreDto) {
-    return this.storesService.create(createStoreDto);
+  @UseGuards(ClerkAuthGuard)
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() createStoreDto: CreateStoreDto,
+  ) {
+    console.log('User creating store: ', user);
+    return this.storesService.create(createStoreDto, user);
   }
 
   @Get()

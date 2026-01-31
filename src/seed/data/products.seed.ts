@@ -182,7 +182,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.2,
   },
   {
-    storeId: 6,
+    storeId: 3,
     categoryId: 'fitness',
     sku: 'SKU-013',
     name: 'Resistance Bands Set',
@@ -197,7 +197,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.3,
   },
   {
-    storeId: 6,
+    storeId: 3,
     categoryId: 'kitchen',
     sku: 'SKU-014',
     name: 'Chef Knife',
@@ -212,7 +212,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.5,
   },
   {
-    storeId: 6,
+    storeId: 3,
     categoryId: 'kitchen',
     sku: 'SKU-015',
     name: 'Nonstick Pan 12"',
@@ -227,7 +227,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.2,
   },
   {
-    storeId: 7,
+    storeId: 2,
     categoryId: 'kitchen',
     sku: 'SKU-016',
     name: 'Electric Kettle',
@@ -242,7 +242,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.4,
   },
   {
-    storeId: 7,
+    storeId: 2,
     categoryId: 'kitchen',
     sku: 'SKU-017',
     name: 'Air Fryer 4L',
@@ -257,7 +257,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.6,
   },
   {
-    storeId: 8,
+    storeId: 1,
     categoryId: 'outdoors',
     sku: 'SKU-018',
     name: 'Camping Tent 4P',
@@ -272,7 +272,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.5,
   },
   {
-    storeId: 8,
+    storeId: 1,
     categoryId: 'outdoors',
     sku: 'SKU-019',
     name: 'Sleeping Bag',
@@ -287,7 +287,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.3,
   },
   {
-    storeId: 8,
+    storeId: 1,
     categoryId: 'outdoors',
     sku: 'SKU-020',
     name: 'Hiking Backpack 40L',
@@ -302,7 +302,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.5,
   },
   {
-    storeId: 9,
+    storeId: 5,
     categoryId: 'beauty',
     sku: 'SKU-021',
     name: 'Facial Cleanser',
@@ -317,7 +317,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.1,
   },
   {
-    storeId: 9,
+    storeId: 5,
     categoryId: 'beauty',
     sku: 'SKU-022',
     name: 'Moisturizer Cream',
@@ -332,7 +332,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.2,
   },
   {
-    storeId: 9,
+    storeId: 5,
     categoryId: 'beauty',
     sku: 'SKU-023',
     name: 'Vitamin C Serum',
@@ -347,7 +347,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.4,
   },
   {
-    storeId: 10,
+    storeId: 4,
     categoryId: 'toys',
     sku: 'SKU-024',
     name: 'Building Blocks Set',
@@ -362,7 +362,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.6,
   },
   {
-    storeId: 10,
+    storeId: 4,
     categoryId: 'toys',
     sku: 'SKU-025',
     name: 'Wooden Puzzle',
@@ -377,7 +377,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.3,
   },
   {
-    storeId: 10,
+    storeId: 4,
     categoryId: 'toys',
     sku: 'SKU-026',
     name: 'RC Car',
@@ -392,7 +392,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.5,
   },
   {
-    storeId: 11,
+    storeId: 1,
     categoryId: 'books',
     sku: 'SKU-027',
     name: 'Productivity Book',
@@ -407,7 +407,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.1,
   },
   {
-    storeId: 11,
+    storeId: 1,
     categoryId: 'books',
     sku: 'SKU-028',
     name: 'Cooking Basics',
@@ -422,7 +422,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.2,
   },
   {
-    storeId: 11,
+    storeId: 1,
     categoryId: 'books',
     sku: 'SKU-029',
     name: 'Sci-Fi Novel',
@@ -437,7 +437,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.4,
   },
   {
-    storeId: 12,
+    storeId: 2,
     categoryId: 'fashion',
     sku: 'SKU-030',
     name: 'Classic T-Shirt',
@@ -452,7 +452,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.0,
   },
   {
-    storeId: 12,
+    storeId: 2,
     categoryId: 'fashion',
     sku: 'SKU-031',
     name: 'Denim Jeans',
@@ -467,7 +467,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.3,
   },
   {
-    storeId: 12,
+    storeId: 2,
     categoryId: 'fashion',
     sku: 'SKU-032',
     name: 'Hoodie',
@@ -482,7 +482,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.5,
   },
   {
-    storeId: 13,
+    storeId: 3,
     categoryId: 'pet',
     sku: 'SKU-033',
     name: 'Dog Harness',
@@ -497,7 +497,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.4,
   },
   {
-    storeId: 13,
+    storeId: 3,
     categoryId: 'pet',
     sku: 'SKU-034',
     name: 'Cat Scratcher',
@@ -512,7 +512,7 @@ export const productsSeed: Partial<Product>[] = [
     rating: 4.1,
   },
   {
-    storeId: 13,
+    storeId: 3,
     categoryId: 'pet',
     sku: 'SKU-035',
     name: 'Pet Water Fountain',

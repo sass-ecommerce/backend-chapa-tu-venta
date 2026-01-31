@@ -23,7 +23,9 @@ export class ProductsService {
       const product = this.productRepository.create(createProductDto);
       await this.productRepository.save(product);
       console.log('Created product: ', product);
-      return product;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, ...productWithoutId } = product;
+      return productWithoutId;
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -38,7 +40,8 @@ export class ProductsService {
       skip: offset,
       //ToDo: relations:['category' ]
     });
-    return products;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return products.map(({ id, ...product }) => product);
   }
 
   async findOne(slug: string) {

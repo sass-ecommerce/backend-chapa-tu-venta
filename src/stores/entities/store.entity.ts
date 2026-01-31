@@ -1,8 +1,10 @@
+import { Product } from 'src/products/entities/product.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -39,4 +41,8 @@ export class Store {
 
   @Column({ type: 'boolean', nullable: true, default: () => 'true' })
   status: boolean;
+
+  // Relations
+  @OneToMany(() => Product, (product) => product.store, { eager: true })
+  product: Product[];
 }

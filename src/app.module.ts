@@ -11,6 +11,7 @@ import { databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { SeedModule } from './seed/seed.module';
 import { StoresModule } from './stores/stores.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { StoresModule } from './stores/stores.module';
     ProductsModule,
     SeedModule,
     StoresModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

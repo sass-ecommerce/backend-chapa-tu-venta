@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Store } from 'src/stores/entities/store.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -50,7 +57,7 @@ export class Product {
   @Column('real', { nullable: true })
   rating: number;
 
-  //   @ManyToOne(() => Store, { nullable: true, onDelete: 'SET NULL' })
-  // @JoinColumn({ name: 'store_id', referencedColumnName: 'id' })
-  // store: Store;
+  @ManyToOne(() => Store, { nullable: true })
+  @JoinColumn({ name: 'store_id', referencedColumnName: 'id' })
+  store: Store;
 }
