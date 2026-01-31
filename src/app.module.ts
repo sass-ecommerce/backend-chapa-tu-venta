@@ -9,7 +9,6 @@ import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
-import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -33,6 +32,7 @@ import { SeedModule } from './seed/seed.module';
         username: configService.get<string>('database.postgres.username'),
         password: configService.get<string>('database.postgres.password'),
         database: configService.get<string>('database.postgres.database'),
+        schema: configService.get<string>('database.postgres.schema'),
         autoLoadEntities: true,
         synchronize:
           configService.get<string>('database.nodeEnv') !== 'production',
@@ -48,7 +48,6 @@ import { SeedModule } from './seed/seed.module';
     UsersModule,
     CommonModule,
     ProductsModule,
-    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
