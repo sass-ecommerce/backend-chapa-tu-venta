@@ -34,7 +34,7 @@ npm run lint               # Run ESLint with auto-fix
 npm run format             # Format all files with Prettier
 ```
 
-### Testing
+### Testing (SOLO bajo demanda explícita del usuario)
 
 ```bash
 npm test                   # Run all unit tests

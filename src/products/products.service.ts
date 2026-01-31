@@ -11,7 +11,6 @@ import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { RawProductData } from './interface/raw-product-data.interface';
-import { transformArrayToCamelCase } from '../common/helpers/case-transformer.helper';
 
 @Injectable()
 export class ProductsService {
@@ -41,7 +40,27 @@ export class ProductsService {
       )) as RawProductData[];
 
       // Transformar de snake_case a camelCase
-      return transformArrayToCamelCase<Product>(rawProducts);
+      const products = rawProducts.map((raw) => ({
+        id: raw.id,
+        slug: raw.slug,
+        storeId: raw.store_id,
+        sku: raw.sku,
+        name: raw.name,
+        description: raw.description,
+        price: raw.price,
+        stockQuantity: raw.stock_quantity,
+        isActive: raw.is_active,
+        priceList: raw.price_list,
+        priceBase: raw.price_base,
+        imageUri: raw.image_uri,
+        trending: raw.trending,
+        rating: raw.rating,
+        status: raw.status,
+        createdAt: raw.created_at,
+        updatedAt: raw.updated_at,
+      }));
+
+      return products;
     } catch (error) {
       this.handleDBExceptions(error);
     }
