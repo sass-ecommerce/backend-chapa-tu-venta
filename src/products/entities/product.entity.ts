@@ -1,20 +1,27 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Store } from '../../stores/entities/store.entity';
 
-@Entity({ name: 'products' })
+@Entity({ name: 'products', schema: 'b2b' })
 export class Product {
-  @PrimaryGeneratedColumn('identity', { type: 'bigint', name: 'id' })
+  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
   id: string;
 
-  @Column({ type: 'uuid', default: () => 'gen_random_uuid()' })
+  @Column('uuid', {
+    nullable: true,
+    default: () => 'gen_random_uuid()',
+  })
   slug: string;
 
   @Column('bigint', { name: 'store_id', nullable: true })
   storeId: number;
 
-  @Column('varchar', { name: 'category_id', nullable: true })
-  categoryId: string;
-
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { nullable: true, unique: true })
   sku: string;
 
   @Column('varchar', { nullable: true })
@@ -29,25 +36,35 @@ export class Product {
   @Column('bigint', { name: 'stock_quantity', nullable: true })
   stockQuantity: number;
 
-  @Column('boolean', { name: 'is_active', default: true })
+  @Column('boolean', { name: 'is_active', nullable: true, default: true })
   isActive: boolean;
-
-  @Column('timestamptz', { name: 'created_at', default: () => 'now()' })
-  createdAt: Date;
 
   @Column('double precision', { name: 'price_list', nullable: true })
   priceList: number;
 
+  @Column('double precision', { name: 'price_base', nullable: true })
+  priceBase: number;
+
   @Column('text', { name: 'image_uri', nullable: true })
   imageUri: string;
 
-  @Column('boolean', { default: false })
+  @Column('boolean', { nullable: true, default: false })
   trending: boolean;
 
-  @Column('real', { nullable: true })
+  @Column('double precision', { nullable: true })
   rating: number;
 
-  //   @ManyToOne(() => Store, { nullable: true, onDelete: 'SET NULL' })
-  // @JoinColumn({ name: 'store_id', referencedColumnName: 'id' })
-  // store: Store;
+  @Column('boolean', { nullable: true, default: true })
+  status: boolean;
+
+  @Column('timestamptz', { name: 'created_at', default: () => 'now()' })
+  createdAt: Date;
+
+  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  updatedAt: Date;
+
+  // Relations
+  @ManyToOne(() => Store, (store) => store.products, { nullable: true })
+  @JoinColumn({ name: 'store_id' })
+  store: Store;
 }

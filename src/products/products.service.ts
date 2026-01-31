@@ -10,6 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { RawProductData } from './interface/raw-product-data.interface';
+import { transformArrayToCamelCase } from '../common/helpers/case-transformer.helper';
 
 @Injectable()
 export class ProductsService {
@@ -30,15 +32,19 @@ export class ProductsService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0 } = paginationDto;
+    const { limit = null, offset = 0, storeSlug } = paginationDto;
 
-    const products = await this.productRepository.find({
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
-      //ToDo: relations:['category' ]
-    });
-    return products;
+    try {
+      const rawProducts = (await this.productRepository.query(
+        'SELECT * FROM b2b.fn_get_products($1, $2, $3)',
+        [storeSlug, limit, offset],
+      )) as RawProductData[];
+
+      // Transformar de snake_case a camelCase
+      return transformArrayToCamelCase<Product>(rawProducts);
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
   async findOne(slug: string) {
@@ -58,7 +64,6 @@ export class ProductsService {
   // }
 
   private handleDBExceptions(error: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (error?.code === '23505') throw new BadRequestException(error.detail);
     console.error(error);
     throw new InternalServerErrorException(
