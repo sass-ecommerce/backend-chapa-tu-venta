@@ -9,6 +9,7 @@ import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
+import { StoresModule } from './stores/stores.module';
 
 @Module({
   imports: [
@@ -34,8 +35,6 @@ import { ProductsModule } from './products/products.module';
         database: configService.get<string>('database.postgres.database'),
         schema: configService.get<string>('database.postgres.schema'),
         autoLoadEntities: true,
-        synchronize:
-          configService.get<string>('database.nodeEnv') !== 'production',
       }),
     }),
     MongooseModule.forRootAsync({
@@ -45,6 +44,7 @@ import { ProductsModule } from './products/products.module';
         uri: configService.get<string>('database.mongodb.uri'),
       }),
     }),
+    StoresModule,
     UsersModule,
     CommonModule,
     ProductsModule,
