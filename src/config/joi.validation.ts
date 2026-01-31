@@ -9,6 +9,7 @@ export const ValidationSchema = Joi.object({
   POSTGRES_USER: Joi.string().required().description('Database username'),
   POSTGRES_PASSWORD: Joi.string().required().description('Database password'),
   POSTGRES_DB: Joi.string().required().description('Database name'),
+  POSTGRES_SCHEMA: Joi.string().required().description('Database schema'),
 
   // MongoDB Configurations
   MONGO_URI: Joi.string().required().description('MongoDB connection URI'),

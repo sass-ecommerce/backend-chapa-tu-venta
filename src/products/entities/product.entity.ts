@@ -38,9 +38,6 @@ export class Product {
   @Column('double precision', { name: 'price_list', nullable: true })
   priceList: number;
 
-  @Column('double precision', { name: 'price_base', nullable: true })
-  priceBase: number;
-
   @Column('text', { name: 'image_uri', nullable: true })
   imageUri: string;
 
