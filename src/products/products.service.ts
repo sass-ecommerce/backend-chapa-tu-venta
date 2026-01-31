@@ -38,12 +38,10 @@ export class ProductsService {
         'SELECT * FROM b2b.fn_get_products($1, $2, $3)',
         [storeSlug, limit, offset],
       )) as RawProductData[];
-
+      console.log('Raw products: ', rawProducts);
       // Transformar de snake_case a camelCase
       const products = rawProducts.map((raw) => ({
-        id: raw.id,
         slug: raw.slug,
-        storeId: raw.store_id,
         sku: raw.sku,
         name: raw.name,
         description: raw.description,
@@ -51,13 +49,8 @@ export class ProductsService {
         stockQuantity: raw.stock_quantity,
         isActive: raw.is_active,
         priceList: raw.price_list,
-        priceBase: raw.price_base,
         imageUri: raw.image_uri,
         trending: raw.trending,
-        rating: raw.rating,
-        status: raw.status,
-        createdAt: raw.created_at,
-        updatedAt: raw.updated_at,
       }));
 
       return products;

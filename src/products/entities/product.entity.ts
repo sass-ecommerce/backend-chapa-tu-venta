@@ -42,17 +42,11 @@ export class Product {
   @Column('double precision', { name: 'price_list', nullable: true })
   priceList: number;
 
-  @Column('double precision', { name: 'price_base', nullable: true })
-  priceBase: number;
-
   @Column('text', { name: 'image_uri', nullable: true })
   imageUri: string;
 
   @Column('boolean', { nullable: true, default: false })
   trending: boolean;
-
-  @Column('double precision', { nullable: true })
-  rating: number;
 
   @Column('boolean', { nullable: true, default: true })
   status: boolean;

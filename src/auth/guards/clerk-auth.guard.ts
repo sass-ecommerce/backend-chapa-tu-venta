@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { createClerkClient } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import {
@@ -18,22 +18,12 @@ import {
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
   private readonly logger = new Logger(ClerkAuthGuard.name);
-  private readonly clerkClient;
-  private readonly allowedOrigins: string[];
 
   constructor(
     private reflector: Reflector,
     private configService: ConfigService,
   ) {
-    // Inicializar Clerk Client
-    this.clerkClient = createClerkClient({
-      secretKey: this.configService.get<string>('CLERK_SECRET_KEY'),
-      publishableKey: this.configService.get<string>('CLERK_PUBLISHABLE_KEY'),
-    });
-
-    // Obtener orígenes permitidos para validación
-    const origins = this.configService.get<string>('ALLOWED_ORIGINS', '');
-    this.allowedOrigins = origins.split(',').map((origin) => origin.trim());
+    this.logger.log('🔐 ClerkAuthGuard initialized - JWT token validation');
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -58,48 +48,53 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     try {
-      // 4. Autenticar el request con Clerk
-      const requestState = await this.clerkClient.authenticateRequest(request, {
-        authorizedParties: this.allowedOrigins,
+      // 4. Verificar y decodificar el token JWT usando verifyToken de Clerk
+      const payload = await verifyToken(token, {
+        secretKey: this.configService.get<string>('CLERK_SECRET_KEY'),
       });
 
-      // 5. Verificar si está autenticado
-      if (!requestState.isAuthenticated) {
-        this.logger.warn(`Authentication failed: ${requestState.reason}`);
-        throw new UnauthorizedException(
-          requestState.message || 'Invalid or expired token',
-        );
+      if (!payload) {
+        this.logger.warn('Token verification failed - invalid token');
+        throw new UnauthorizedException('Invalid or expired token');
       }
 
-      // 6. Obtener los claims del token
-      const auth = requestState.toAuth();
-      const sessionClaims = auth.sessionClaims as ClerkJwtPayload;
+      // 5. Extraer claims del payload
+      const sessionClaims = payload as unknown as ClerkJwtPayload;
 
-      if (!sessionClaims) {
-        throw new UnauthorizedException('Unable to extract session claims');
+      if (!sessionClaims.sub) {
+        throw new UnauthorizedException('Invalid token payload');
       }
 
-      // 7. Construir el objeto usuario autenticado
+      // 6. Construir el objeto usuario autenticado
       const authenticatedUser: AuthenticatedUser = {
-        userId: auth.userId!,
-        sessionId: auth.sessionId!,
+        userId: sessionClaims.sub,
+        sessionId: sessionClaims.sid,
         email: sessionClaims.email,
         firstName: sessionClaims.first_name,
         lastName: sessionClaims.last_name,
         imageUrl: sessionClaims.image_url,
-        metadata: sessionClaims.metadata || sessionClaims.publicMetadata,
-        orgId: auth.orgId || sessionClaims.org_id,
-        orgSlug: auth.orgSlug || sessionClaims.org_slug,
-        orgRole: auth.orgRole || sessionClaims.org_role,
+        metadata: sessionClaims.metadata || sessionClaims.publicMetadata || {},
+        orgId: sessionClaims.org_id,
+        orgSlug: sessionClaims.org_slug,
+        orgRole: sessionClaims.org_role,
       };
 
-      // 8. Adjuntar usuario al request para uso posterior
+      // 7. Adjuntar usuario al request para uso posterior
       request['user'] = authenticatedUser;
 
       this.logger.log(`User authenticated: ${authenticatedUser.userId}`);
       return true;
     } catch (error) {
       this.logger.error('Authentication error:', error);
+
+      // Errores específicos de Clerk
+      if (error?.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Token has expired');
+      }
+
+      if (error?.name === 'TokenVerificationError') {
+        throw new UnauthorizedException('Invalid token signature');
+      }
 
       if (error instanceof UnauthorizedException) {
         throw error;
