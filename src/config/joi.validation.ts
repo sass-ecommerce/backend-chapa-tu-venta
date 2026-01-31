@@ -18,4 +18,15 @@ export const ValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .description('Node environment'),
+
+  // Clerk Authentication
+  CLERK_SECRET_KEY: Joi.string()
+    .required()
+    .description('Clerk secret key for backend authentication'),
+  CLERK_PUBLISHABLE_KEY: Joi.string()
+    .required()
+    .description('Clerk publishable key'),
+  ALLOWED_ORIGINS: Joi.string()
+    .required()
+    .description('Comma-separated list of allowed origins for CORS'),
 });

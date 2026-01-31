@@ -8,6 +8,7 @@ import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { StoresModule } from './stores/stores.module';
         uri: configService.get<string>('database.mongodb.uri'),
       }),
     }),
+    AuthModule,
     StoresModule,
     UsersModule,
     CommonModule,
