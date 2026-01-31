@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,6 +6,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import { databaseConfig } from './config/configuration';
+import { ProductsModule } from './products/products.module';
+import { StoresModule } from './stores/stores.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -31,9 +32,8 @@ import { databaseConfig } from './config/configuration';
         username: configService.get<string>('database.postgres.username'),
         password: configService.get<string>('database.postgres.password'),
         database: configService.get<string>('database.postgres.database'),
+        schema: configService.get<string>('database.postgres.schema'),
         autoLoadEntities: true,
-        synchronize:
-          configService.get<string>('database.nodeEnv') !== 'production',
       }),
     }),
     MongooseModule.forRootAsync({
@@ -43,10 +43,13 @@ import { databaseConfig } from './config/configuration';
         uri: configService.get<string>('database.mongodb.uri'),
       }),
     }),
+    AuthModule,
+    StoresModule,
     UsersModule,
     CommonModule,
+    ProductsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}

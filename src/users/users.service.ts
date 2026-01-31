@@ -58,7 +58,7 @@ export class UsersService {
     } catch (error) {
       await log.updateOne({
         statusProcess: StatusProcess.Error,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
         errorMessage: error.message,
       });
 

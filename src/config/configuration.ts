@@ -13,5 +13,6 @@ export const databaseConfig = registerAs('database', () => ({
     username: process.env.POSTGRES_USER || 'user',
     password: process.env.POSTGRES_PASSWORD || 'password',
     database: process.env.POSTGRES_DB || 'mydb',
+    schema: process.env.POSTGRES_SCHEMA || 'mydb',
   },
 }));

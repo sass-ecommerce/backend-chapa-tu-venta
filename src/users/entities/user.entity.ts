@@ -1,15 +1,19 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Store } from '../../stores/entities/store.entity';
 
-@Entity({ name: 'users' })
+@Entity({ name: 'users', schema: 'b2b' })
 export class User {
-  @PrimaryGeneratedColumn('uuid', { name: 'id_internal' })
-  idInternal: string;
+  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  id: string;
 
-  @Column('varchar', { name: 'external_auth_id', nullable: true })
-  externalAuthId: string;
-
-  @Column('varchar', { unique: true, name: 'clerk_id', nullable: false })
-  clerkId: string;
+  @Column('uuid', { unique: true, default: () => 'gen_random_uuid()' })
+  slug: string;
 
   @Column('varchar', { name: 'first_name', nullable: true })
   firstName: string;
@@ -17,34 +21,45 @@ export class User {
   @Column('varchar', { name: 'last_name', nullable: true })
   lastName: string;
 
+  @Column('varchar', { name: 'external_auth_id', nullable: true })
+  externalAuthId: string;
+
+  @Column('varchar', { name: 'clerk_id', nullable: true })
+  clerkId: string;
+
   @Column('varchar', { unique: true, nullable: false })
   email: string;
 
   @Column('text', { name: 'image_url', nullable: true })
   imageUrl: string;
 
-  @Column('boolean', { default: true })
+  @Column('boolean', { name: 'is_active', nullable: true, default: true })
   isActive: boolean;
 
-  @Column('varchar', { default: 'user' })
+  @Column('varchar', { nullable: true })
   role: string;
 
   @Column('varchar', { name: 'auth_method', nullable: true })
-  authMethod: string; // oauth_google, oauth_tiktok, password, etc.
+  authMethod: string;
 
   @Column('varchar', { name: 'provider_user_id', nullable: true })
-  providerUserId: string; // El ID real de Google o TikTok (ej: 113325539...)
+  providerUserId: string;
 
-  @Column('timestamp', {
-    default: () => 'CURRENT_TIMESTAMP',
-    name: 'create_at',
-  })
-  createAt: Date;
+  @Column('bigint', { name: 'store_id', nullable: true })
+  storeId: number;
 
-  @Column('timestamp', {
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
-    name: 'update_at',
+  @Column('timestamptz', {
+    name: 'created_at',
+    nullable: true,
+    default: () => 'now()',
   })
-  updateAt: Date;
+  createdAt: Date;
+
+  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  updatedAt: Date;
+
+  // Relations
+  @ManyToOne(() => Store, (store) => store.users, { nullable: true })
+  @JoinColumn({ name: 'store_id' })
+  store: Store;
 }
