@@ -1,7 +1,15 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Public } from '../auth/decorators/public.decorator';
+import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
 
 @Controller('users')
 export class UsersController {
@@ -12,8 +20,14 @@ export class UsersController {
   @Public()
   @HttpCode(200)
   create(@Body() createUserDto: CreateUserDto) {
-    console.log('[UsersController][create][createUserDto]', createUserDto);
+    // console.log('[UsersController][create][createUserDto]', createUserDto);
 
     return this.usersService.create(createUserDto);
+  }
+
+  @Patch()
+  @UseGuards(ClerkAuthGuard)
+  update(@Body() updateUserDto: CreateUserDto) {
+    return this.usersService.update(updateUserDto);
   }
 }
