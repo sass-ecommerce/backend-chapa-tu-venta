@@ -137,7 +137,7 @@ export class ExampleController {
     return {
       userId: user.userId,
       email: user.email,
-      metadata: user.metadata, // { storeSlug, plan, onboardingCompleted }
+      privateMetadata: user.privateMetadata, // { storeSlug, plan, onboardingCompleted }
     };
   }
 

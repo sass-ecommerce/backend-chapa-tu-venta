@@ -7,12 +7,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { UserLog } from './schema/user-log.schema';
 import { Model } from 'mongoose';
 import { StatusProcess } from './interface/status-process.interface';
+import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private usersRepository: Repository<User>,
     @InjectModel(UserLog.name) private userLogModel: Model<UserLog>,
+    private authService: AuthService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -48,17 +50,20 @@ export class UsersService {
       };
 
       await this.usersRepository.upsert(userData, ['clerkId']);
+      const result = await this.usersRepository.findOneBy({ clerkId: data.id });
 
       await log.updateOne({
         statusProcess: StatusProcess.Completed,
         errorMessage: '',
       });
 
+      await this.authService.updatePublicMetadata(userData.clerkId, {
+        user: { slug: result?.slug },
+      });
       return { completed: true };
     } catch (error) {
       await log.updateOne({
         statusProcess: StatusProcess.Error,
-
         errorMessage: error.message,
       });
 
