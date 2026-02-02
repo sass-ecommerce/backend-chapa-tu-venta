@@ -14,6 +14,7 @@ import {
   AuthenticatedUser,
   ClerkJwtPayload,
 } from '../interfaces/clerk-user.interface';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class ClerkAuthGuard implements CanActivate {
@@ -22,6 +23,7 @@ export class ClerkAuthGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private configService: ConfigService,
+    private authService: AuthService,
   ) {
     this.logger.log('🔐 ClerkAuthGuard initialized - JWT token validation');
   }
@@ -60,10 +62,15 @@ export class ClerkAuthGuard implements CanActivate {
 
       // 5. Extraer claims del payload
       const sessionClaims = payload as unknown as ClerkJwtPayload;
-
+      this.logger.log('Session claims:', sessionClaims);
       if (!sessionClaims.sub) {
         throw new UnauthorizedException('Invalid token payload');
       }
+
+      // 5.1 Opcional: Obtener datos completos del usuario desde Clerk
+      const userData = await this.authService.getUserById(sessionClaims.sub);
+
+      this.logger.log(' Fetched full user data for userId: ', userData);
 
       // 6. Construir el objeto usuario autenticado
       const authenticatedUser: AuthenticatedUser = {
@@ -73,12 +80,13 @@ export class ClerkAuthGuard implements CanActivate {
         firstName: sessionClaims.first_name,
         lastName: sessionClaims.last_name,
         imageUrl: sessionClaims.image_url,
-        metadata: sessionClaims.metadata || sessionClaims.publicMetadata || {},
         orgId: sessionClaims.org_id,
         orgSlug: sessionClaims.org_slug,
         orgRole: sessionClaims.org_role,
+        publicMetadata: userData?.publicMetadata || {},
+        privateMetadata: userData?.privateMetadata || {},
+        unsafeMetadata: userData?.unsafeMetadata || {},
       };
-
       // 7. Adjuntar usuario al request para uso posterior
       request['user'] = authenticatedUser;
 
