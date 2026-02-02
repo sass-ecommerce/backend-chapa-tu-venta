@@ -94,6 +94,11 @@ export class UsersService {
       await this.authService.updatePublicMetadata(userData.clerkId, {
         user: { slug: result?.slug },
       });
+
+      this.logger.log(
+        `User created successfully - clerkId: ${data.id}, email: ${userData.email}`,
+      );
+
       return { completed: true };
     } catch (error) {
       await log.updateOne({
@@ -117,7 +122,7 @@ export class UsersService {
       instance_id,
     );
 
-    // Validar email ANTES del try/catch
+    // Validacion email uniqueness
     const emailAddress = data.email_addresses?.find(
       (email) => email.id === data.primary_email_address_id,
     )?.email_address;
@@ -146,7 +151,6 @@ export class UsersService {
       }
     }
 
-    // Try/catch solo para errores técnicos de BD
     try {
       const updateData = {
         firstName: data?.first_name,
@@ -161,6 +165,10 @@ export class UsersService {
         statusProcess: StatusProcess.Completed,
         errorMessage: '',
       });
+
+      this.logger.log(
+        `User updated successfully - clerkId: ${data.id}, fields: ${Object.keys(updateData).join(', ')}`,
+      );
 
       return { completed: true };
     } catch (error) {
