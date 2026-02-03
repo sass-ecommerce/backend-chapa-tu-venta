@@ -4,17 +4,20 @@ import {
   IsNumber,
   IsObject,
   IsOptional,
+  IsPositive,
   IsString,
+  MinLength,
 } from 'class-validator';
 
 export class CreateStoreDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
   name: string;
 
   @IsEmail()
-  @IsOptional()
-  ownerEmail?: string;
+  @IsNotEmpty()
+  ownerEmail: string;
 
   @IsString()
   @IsOptional()
@@ -26,5 +29,6 @@ export class CreateStoreDto {
 
   @IsNumber()
   @IsOptional()
+  @IsPositive()
   ruc?: number;
 }

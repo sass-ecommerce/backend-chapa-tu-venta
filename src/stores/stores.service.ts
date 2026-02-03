@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
@@ -14,6 +16,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { User } from 'src/users/entities/user.entity';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
 import { AuthService } from '../auth/auth.service';
+import { RoleUser } from 'src/users/interface/role-user.interface';
 
 @Injectable()
 export class StoresService {
@@ -22,7 +25,7 @@ export class StoresService {
     private readonly storeRepository: Repository<Store>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-
+    private readonly dataSource: DataSource,
     private readonly authService: AuthService,
   ) {}
 
@@ -35,29 +38,37 @@ export class StoresService {
       throw new NotFoundException(`User with id ${user.userId} not found`);
 
     if (userEntity.email != createStoreDto.ownerEmail) {
-      throw new BadRequestException(
-        `Owner email does not match with user email`,
-      );
+      throw new ConflictException(`Owner email does not match with user email`);
     }
 
-    // if (!userEntity.store) {
-    //   createStoreDto.ownerEmail = user.emailAddresses[0]?.emailAddress || null;
-    // }
-    // createStoreDto.owner = userEntity;
-
+    if (userEntity.storeId) {
+      throw new BadRequestException(`User already has a store assigned`);
+    }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
     try {
-      const store = this.storeRepository.create(createStoreDto);
-      await this.storeRepository.save(store);
+      const storeRepo = queryRunner.manager.getRepository(Store);
+      const userRepo = queryRunner.manager.getRepository(User);
 
-      userEntity.storeId = store.id;
-      await this.userRepository.save(userEntity);
+      const store = await storeRepo.save(storeRepo.create(createStoreDto));
+
+      await userRepo.update(userEntity.id, {
+        role: RoleUser.Admin,
+        storeId: store.id,
+      });
+
+      await queryRunner.commitTransaction();
 
       await this.authService.updatePublicMetadata(user.userId, {
         store: { slug: store?.slug },
       });
       return store;
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       this.handleDBExceptions(error);
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -109,7 +120,7 @@ export class StoresService {
 
   private handleDBExceptions(error: any): never {
     if (error?.code === '23505') {
-      throw new BadRequestException(error.detail);
+      throw new ConflictException(error.detail);
     }
     console.error(error);
     throw new InternalServerErrorException(
