@@ -6,6 +6,8 @@ import {
   Param,
   Query,
   UseGuards,
+  ValidationPipe,
+  UsePipes,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -16,6 +18,13 @@ import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface
 
 @Controller('products')
 @UseGuards(ClerkAuthGuard)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
