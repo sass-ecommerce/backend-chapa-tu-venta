@@ -7,19 +7,27 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
 
 @Controller('stores')
+@UseGuards(ClerkAuthGuard)
 export class StoresController {
   constructor(private readonly storesService: StoresService) {}
 
   @Post()
-  create(@Body() createStoreDto: CreateStoreDto) {
-    return this.storesService.create(createStoreDto);
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() createStoreDto: CreateStoreDto,
+  ) {
+    return this.storesService.create(createStoreDto, user);
   }
 
   @Get()

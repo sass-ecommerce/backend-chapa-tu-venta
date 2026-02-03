@@ -11,18 +11,50 @@ import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { User } from 'src/users/entities/user.entity';
+import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class StoresService {
   constructor(
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+
+    private readonly authService: AuthService,
   ) {}
 
-  async create(createStoreDto: CreateStoreDto) {
+  async create(createStoreDto: CreateStoreDto, user: AuthenticatedUser) {
+    const userEntity = await this.userRepository.findOneBy({
+      clerkId: user.userId,
+    });
+
+    if (!userEntity)
+      throw new NotFoundException(`User with id ${user.userId} not found`);
+
+    if (userEntity.email != createStoreDto.ownerEmail) {
+      throw new BadRequestException(
+        `Owner email does not match with user email`,
+      );
+    }
+
+    // if (!userEntity.store) {
+    //   createStoreDto.ownerEmail = user.emailAddresses[0]?.emailAddress || null;
+    // }
+    // createStoreDto.owner = userEntity;
+
     try {
       const store = this.storeRepository.create(createStoreDto);
       await this.storeRepository.save(store);
+
+      userEntity.storeId = store.id;
+      await this.userRepository.save(userEntity);
+
+      await this.authService.updatePublicMetadata(user.userId, {
+        store: { slug: store?.slug },
+      });
       return store;
     } catch (error) {
       this.handleDBExceptions(error);

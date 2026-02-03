@@ -5,7 +5,7 @@ import { User } from '../../users/entities/user.entity';
 @Entity({ name: 'stores', schema: 'b2b' })
 export class Store {
   @PrimaryGeneratedColumn('identity', { type: 'bigint' })
-  id: string;
+  id: number;
 
   @Column('varchar', { nullable: false })
   name: string;

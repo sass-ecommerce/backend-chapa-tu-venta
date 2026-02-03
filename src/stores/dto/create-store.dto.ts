@@ -1,5 +1,4 @@
 import {
-  IsBoolean,
   IsEmail,
   IsNotEmpty,
   IsNumber,
@@ -24,10 +23,6 @@ export class CreateStoreDto {
   @IsObject()
   @IsOptional()
   settings?: Record<string, any>;
-
-  @IsBoolean()
-  @IsOptional()
-  status?: boolean;
 
   @IsNumber()
   @IsOptional()
