@@ -8,6 +8,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { BeforeInsert } from 'typeorm';
 
 export class CreateStoreDto {
   @IsString()
@@ -31,4 +32,9 @@ export class CreateStoreDto {
   @IsOptional()
   @IsPositive()
   ruc?: number;
+
+  @BeforeInsert()
+  normalizeFields() {
+    this.ownerEmail = this.ownerEmail.toLowerCase();
+  }
 }
