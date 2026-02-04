@@ -1,21 +1,24 @@
 import {
-  IsBoolean,
   IsEmail,
   IsNotEmpty,
   IsNumber,
   IsObject,
   IsOptional,
+  IsPositive,
   IsString,
+  MinLength,
 } from 'class-validator';
+import { BeforeInsert } from 'typeorm';
 
 export class CreateStoreDto {
   @IsString()
   @IsNotEmpty()
+  @MinLength(3)
   name: string;
 
   @IsEmail()
-  @IsOptional()
-  ownerEmail?: string;
+  @IsNotEmpty()
+  ownerEmail: string;
 
   @IsString()
   @IsOptional()
@@ -25,11 +28,13 @@ export class CreateStoreDto {
   @IsOptional()
   settings?: Record<string, any>;
 
-  @IsBoolean()
-  @IsOptional()
-  status?: boolean;
-
   @IsNumber()
   @IsOptional()
+  @IsPositive()
   ruc?: number;
+
+  @BeforeInsert()
+  normalizeFields() {
+    this.ownerEmail = this.ownerEmail.toLowerCase();
+  }
 }

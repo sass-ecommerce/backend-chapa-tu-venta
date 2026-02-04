@@ -1,5 +1,6 @@
 import {
   IsBoolean,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -7,17 +8,12 @@ import {
 } from 'class-validator';
 
 export class CreateProductDto {
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
-
-  @IsOptional()
   @IsNumber()
-  storeId?: number;
+  @IsInt()
+  storeId: number;
 
-  @IsOptional()
   @IsString()
-  sku?: string;
+  sku: string;
 
   @IsNotEmpty()
   @IsString()
@@ -33,6 +29,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
   stockQuantity?: number;
 
   @IsOptional()

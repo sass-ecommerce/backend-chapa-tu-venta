@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
@@ -11,22 +12,78 @@ import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { RawProductData } from './interface/raw-product-data.interface';
+import { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { Store } from 'src/stores/entities/store.entity';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger('ProductsService');
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(Store)
+    private readonly storeRepository: Repository<Store>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, user: AuthenticatedUser) {
+    //validaciones
+    const store = await this.storeRepository.findOneBy({
+      id: createProductDto.storeId,
+    });
+    if (!store)
+      throw new BadRequestException(
+        `Store with id ${createProductDto.storeId} not found`,
+      );
+
+    if (store.slug !== user.publicMetadata?.store.slug) {
+      throw new BadRequestException(
+        `You do not have permission to create products for this store`,
+      );
+    }
+
+    if (!store.status) {
+      throw new BadRequestException(
+        `Cannot create products for an inactive store`,
+      );
+    }
+
+    const userEntity = await this.userRepository.findOneBy({
+      clerkId: user.userId,
+    });
+    if (!userEntity)
+      throw new NotFoundException(`User with id ${user.userId} not found`);
+
+    const productResult: { data: Product | null } = {
+      data: null,
+    };
+    productResult.data = await this.productRepository.findOneBy({
+      sku: createProductDto.sku,
+    });
+
     try {
-      const product = this.productRepository.create(createProductDto);
-      await this.productRepository.save(product);
-      console.log('Created product: ', product);
-      return product;
+      if (productResult.data) {
+        // Actualizar el producto existente
+        this.productRepository.merge(productResult.data, createProductDto);
+        await this.productRepository.save(productResult.data);
+
+        this.logger.log('Updated product: ', productResult.data);
+      } else {
+        productResult.data = await this.productRepository.save(
+          this.productRepository.create(createProductDto),
+        );
+        this.logger.log('Created product: ', productResult.data);
+      }
+
+      return this.toProductResponse(productResult.data);
     } catch (error) {
-      this.handleDBExceptions(error);
+      this.logger.error(`Error upserting product: ${error.message}`);
+      throw new InternalServerErrorException(
+        'Unexpected error, check server logs',
+      );
     }
   }
 
@@ -38,7 +95,7 @@ export class ProductsService {
         'SELECT * FROM b2b.fn_get_products($1, $2, $3)',
         [storeSlug, limit, offset],
       )) as RawProductData[];
-      console.log('Raw products: ', rawProducts);
+      this.logger.log('Raw products: ', rawProducts);
       // Transformar de snake_case a camelCase
       const products = rawProducts.map((raw) => ({
         slug: raw.slug,
@@ -55,7 +112,10 @@ export class ProductsService {
 
       return products;
     } catch (error) {
-      this.handleDBExceptions(error);
+      this.logger.error(`Error fetching products: ${error.message}`);
+      throw new InternalServerErrorException(
+        'Unexpected error, check server logs',
+      );
     }
   }
 
@@ -64,7 +124,22 @@ export class ProductsService {
     if (!product)
       throw new NotFoundException(`Product with slug ${slug} not found`);
 
-    return product;
+    return this.toProductResponse(product);
+  }
+
+  private toProductResponse(product: Product) {
+    return {
+      slug: product.slug,
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      stockQuantity: product.stockQuantity,
+      isActive: product.isActive,
+      priceList: product.priceList,
+      imageUri: product.imageUri,
+      trending: product.trending,
+    };
   }
 
   // update(id: number, updateProductDto: UpdateProductDto) {
@@ -74,12 +149,4 @@ export class ProductsService {
   // remove(id: number) {
   //   return `This action removes a #${id} product`;
   // }
-
-  private handleDBExceptions(error: any) {
-    if (error?.code === '23505') throw new BadRequestException(error.detail);
-    console.error(error);
-    throw new InternalServerErrorException(
-      'Unexpected error, check server logs',
-    );
-  }
 }
