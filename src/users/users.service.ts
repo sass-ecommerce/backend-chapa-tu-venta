@@ -91,9 +91,11 @@ export class UsersService {
         errorMessage: '',
       });
 
-      await this.authService.updatePublicMetadata(userData.clerkId, {
-        user: { slug: result?.slug },
-      });
+      if (result?.slug) {
+        await this.authService.updatePublicMetadata(userData.clerkId, {
+          user: { slug: result.slug },
+        });
+      }
 
       this.logger.log(
         `User created successfully - clerkId: ${data.id}, email: ${userData.email}`,

@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClerkClient } from '@clerk/backend';
-import { UserPublicMetadata } from './interfaces/clerk-user.interface';
+import {
+  UserPublicMetadata,
+  ClerkFullUser,
+} from './interfaces/clerk-user.interface';
 
 @Injectable()
 export class AuthService {
@@ -32,10 +35,10 @@ export class AuthService {
    * console.log(user.publicMetadata);
    * ```
    */
-  async getUserById(userId: string) {
+  async getUserById(userId: string): Promise<ClerkFullUser> {
     try {
       const user = await this.clerkClient.users.getUser(userId);
-      return user;
+      return user as ClerkFullUser;
     } catch (error) {
       this.logger.error(`Error fetching user ${userId}:`, error);
       throw new InternalServerErrorException('Failed to fetch user data');

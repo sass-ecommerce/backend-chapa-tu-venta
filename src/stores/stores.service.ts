@@ -11,7 +11,6 @@ import { DataSource } from 'typeorm';
 
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { User } from 'src/users/entities/user.entity';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
 import { AuthService } from '../auth/auth.service';
@@ -53,46 +52,51 @@ export class StoresService {
       const storeRepo = queryRunner.manager.getRepository(Store);
       const userRepo = queryRunner.manager.getRepository(User);
 
-      let store: Store | null = null;
-      let type = 0; // 1: created, 2: updated
-
+      const storeResult: { data: Store | null; type: number } = {
+        data: null,
+        type: 0, // 1: created, 2: updated
+      };
       if (userEntity.storeId) {
         //UPDATE
-        store = await storeRepo.findOneBy({ id: userEntity.storeId });
-        if (!store)
+        storeResult.data = await storeRepo.findOneBy({
+          id: userEntity.storeId,
+        });
+        if (!storeResult.data)
           throw new NotFoundException(
             `Store with id ${userEntity.storeId} not found`,
           );
-        storeRepo.merge(store, createStoreDto);
-        await storeRepo.save(store);
+        storeRepo.merge(storeResult.data, createStoreDto);
+        await storeRepo.save(storeResult.data);
 
-        type = this.STORE_UPDATED;
+        storeResult.type = this.STORE_UPDATED;
         this.logger.log(
-          `[StoreService] [upsert] Store updated with id ${store.id} by user ${user.userId}`,
+          `[StoreService] [upsert] Store updated with id ${storeResult.data.id} by user ${user.userId}`,
         );
       } else {
         //CREATE
-        store = await storeRepo.save(storeRepo.create(createStoreDto));
-        type = this.STORE_CREATED;
+        storeResult.data = await storeRepo.save(
+          storeRepo.create(createStoreDto),
+        );
+        storeResult.type = this.STORE_CREATED;
 
         await userRepo.update(userEntity.id, {
           role: RoleUser.Admin,
-          storeId: store.id,
+          storeId: storeResult.data.id,
         });
 
         this.logger.log(
-          `[StoreService] [upsert] Store created with id ${store.id} by user ${user.userId}`,
+          `[StoreService] [upsert] Store created with id ${storeResult.data.id} by user ${user.userId}`,
         );
       }
 
       await queryRunner.commitTransaction();
 
-      if (type === this.STORE_CREATED) {
+      if (storeResult.type === this.STORE_CREATED) {
         await this.authService.updatePublicMetadata(user.userId, {
-          store: { slug: store?.slug },
+          store: { slug: storeResult.data.slug },
         });
       }
-      return store;
+      return storeResult.data;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
@@ -105,38 +109,18 @@ export class StoresService {
     }
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0 } = paginationDto;
-
-    const stores = await this.storeRepository.find({
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
-      where: { status: true },
-    });
-
-    return stores;
-  }
-
-  async findOne(id: string) {
+  async findOne(slug: string) {
     const store = await this.storeRepository.findOne({
-      where: { slug: id, status: true },
+      where: { slug: slug, status: true },
       relations: ['products', 'users'],
     });
 
     if (!store) {
-      throw new NotFoundException(`Store with id ${id} not found`);
+      throw new NotFoundException(`Store with slug ${slug} not found`);
     }
 
     return store;
   }
-
-  // async remove(id: string) {
-  //   const store = await this.findOne(slug);
-  //   store.status = false;
-  //   await this.storeRepository.save(store);
-  //   return { message: `Store ${slug} deactivated successfully` };
-  // }
 
   private handleDBExceptions(error: any): never {
     if (error?.code === '23505') {
