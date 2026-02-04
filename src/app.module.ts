@@ -34,6 +34,9 @@ import { AuthModule } from './auth/auth.module';
         database: configService.get<string>('database.postgres.database'),
         schema: configService.get<string>('database.postgres.schema'),
         autoLoadEntities: true,
+        logger: 'advanced-console',
+        synchronize: false,
+        logging: ['error', 'warn', 'query'],
       }),
     }),
     MongooseModule.forRootAsync({
