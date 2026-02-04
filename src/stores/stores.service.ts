@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +20,7 @@ import { RoleUser } from 'src/users/interface/role-user.interface';
 
 @Injectable()
 export class StoresService {
+  private readonly logger = new Logger('StoresService');
   constructor(
     @InjectRepository(Store)
     private readonly storeRepository: Repository<Store>,
@@ -37,13 +38,9 @@ export class StoresService {
     if (!userEntity)
       throw new NotFoundException(`User with id ${user.userId} not found`);
 
-    if (userEntity.email != createStoreDto.ownerEmail) {
+    if (userEntity.email != createStoreDto.ownerEmail.toLowerCase())
       throw new ConflictException(`Owner email does not match with user email`);
-    }
 
-    if (userEntity.storeId) {
-      throw new BadRequestException(`User already has a store assigned`);
-    }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -51,12 +48,34 @@ export class StoresService {
       const storeRepo = queryRunner.manager.getRepository(Store);
       const userRepo = queryRunner.manager.getRepository(User);
 
-      const store = await storeRepo.save(storeRepo.create(createStoreDto));
+      let store: Store | null = null;
 
-      await userRepo.update(userEntity.id, {
-        role: RoleUser.Admin,
-        storeId: store.id,
-      });
+      if (userEntity.storeId) {
+        store = await storeRepo.findOneBy({ id: userEntity.storeId });
+        if (!store)
+          throw new NotFoundException(
+            `Store with id ${userEntity.storeId} not found`,
+          );
+        storeRepo.merge(store, createStoreDto);
+        store.updatedAt = new Date();
+
+        await storeRepo.save(store);
+
+        this.logger.log(
+          `[StoreController] [create] Store updated with id ${store.id} by user ${user.userId}`,
+        );
+      } else {
+        store = await storeRepo.save(storeRepo.create(createStoreDto));
+
+        await userRepo.update(userEntity.id, {
+          role: RoleUser.Admin,
+          storeId: store.id,
+        });
+
+        this.logger.log(
+          `[StoreController] [create] Store created with id ${store.id} by user ${user.userId}`,
+        );
+      }
 
       await queryRunner.commitTransaction();
 

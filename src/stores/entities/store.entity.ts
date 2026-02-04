@@ -35,7 +35,12 @@ export class Store {
   @Column('timestamptz', { name: 'created_at', default: () => 'now()' })
   createdAt: Date;
 
-  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  @Column('timestamptz', {
+    name: 'updated_at',
+    nullable: true,
+    default: () => 'now()',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
   updatedAt: Date;
 
   // Relations
