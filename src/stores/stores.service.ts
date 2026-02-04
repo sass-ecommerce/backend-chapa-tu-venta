@@ -11,7 +11,6 @@ import { DataSource } from 'typeorm';
 
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { User } from 'src/users/entities/user.entity';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
 import { AuthService } from '../auth/auth.service';
@@ -68,7 +67,7 @@ export class StoresService {
 
         type = this.STORE_UPDATED;
         this.logger.log(
-          `[StoreService] [upsert] Store updated with id ${store.id} by user ${user.userId}`,
+          `[upsert] Store updated with id ${store.id} by user ${user.userId}`,
         );
       } else {
         //CREATE
@@ -81,7 +80,7 @@ export class StoresService {
         });
 
         this.logger.log(
-          `[StoreService] [upsert] Store created with id ${store.id} by user ${user.userId}`,
+          `[upsert] Store created with id ${store.id} by user ${user.userId}`,
         );
       }
 
@@ -92,11 +91,11 @@ export class StoresService {
           store: { slug: store?.slug },
         });
       }
-      return store;
+      return { name: store.name, slug: store.slug, createdAt: store.createdAt };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
-        `[StoreService] [upsert] Error upserting store: ${error.message}`,
+        `[upsert] Error upserting store: ${error.message}`,
         error.stack,
       );
       this.handleDBExceptions(error);
@@ -105,18 +104,18 @@ export class StoresService {
     }
   }
 
-  async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0 } = paginationDto;
+  // async findAll(paginationDto: PaginationDto) {
+  //   const { limit = 10, offset = 0 } = paginationDto;
 
-    const stores = await this.storeRepository.find({
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: offset,
-      where: { status: true },
-    });
+  //   const stores = await this.storeRepository.find({
+  //     order: { createdAt: 'DESC' },
+  //     take: limit,
+  //     skip: offset,
+  //     where: { status: true },
+  //   });
 
-    return stores;
-  }
+  //   return stores;
+  // }
 
   async findOne(id: string) {
     const store = await this.storeRepository.findOne({

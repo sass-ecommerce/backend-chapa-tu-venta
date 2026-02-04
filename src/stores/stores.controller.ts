@@ -4,12 +4,11 @@ import {
   Post,
   Body,
   Param,
-  Query,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
@@ -20,6 +19,7 @@ export class StoresController {
   constructor(private readonly storesService: StoresService) {}
 
   @Post()
+  @HttpCode(200)
   upsert(
     @CurrentUser() user: AuthenticatedUser,
     @Body() createStoreDto: CreateStoreDto,
@@ -27,10 +27,10 @@ export class StoresController {
     return this.storesService.upsert(createStoreDto, user);
   }
 
-  @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.storesService.findAll(paginationDto);
-  }
+  // @Get()
+  // findAll(@Query() paginationDto: PaginationDto) {
+  //   return this.storesService.findAll(paginationDto);
+  // }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
