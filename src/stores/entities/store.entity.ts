@@ -5,7 +5,7 @@ import { User } from '../../users/entities/user.entity';
 @Entity({ name: 'stores', schema: 'b2b' })
 export class Store {
   @PrimaryGeneratedColumn('identity', { type: 'bigint' })
-  id: string;
+  id: number;
 
   @Column('varchar', { nullable: false })
   name: string;
@@ -35,7 +35,12 @@ export class Store {
   @Column('timestamptz', { name: 'created_at', default: () => 'now()' })
   createdAt: Date;
 
-  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  @Column('timestamptz', {
+    name: 'updated_at',
+    nullable: true,
+    default: () => 'now()',
+    onUpdate: 'CURRENT_TIMESTAMP',
+  })
   updatedAt: Date;
 
   // Relations
