@@ -76,8 +76,13 @@ export class AuthService {
       this.logger.log(`Updated publicMetadata for user ${userId}`);
       return updatedUser;
     } catch (error) {
-      this.logger.error(`Error updating metadata for user ${userId}:`, error);
-      throw new InternalServerErrorException('Failed to update user metadata');
+      this.logger.error(
+        `Error updating metadata for user ${userId}:`,
+        error.message || error,
+      );
+      throw new InternalServerErrorException(
+        `Failed to update user metadata: ${error.message || 'Unknown error'}`,
+      );
     }
   }
 

@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +14,7 @@ import { UserLog } from './schema/user-log.schema';
 import { Model } from 'mongoose';
 import { StatusProcess } from './interface/status-process.interface';
 import { AuthService } from 'src/auth/auth.service';
+import { DeleteUserDto } from './dto/delete-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -30,13 +32,13 @@ export class UsersService {
   private async createOrUpdateLog(
     clerkId: string,
     eventType: string,
-    createUserDto: CreateUserDto,
+    webhookData: CreateUserDto | DeleteUserDto,
     instance_id: string,
   ) {
     return await this.userLogModel.findOneAndUpdate(
       { clerkId, eventType },
       {
-        rawJson: createUserDto,
+        rawJson: webhookData,
         externalAuthId: instance_id,
         statusProcess: StatusProcess.Pending,
         $inc: { retryCount: 1 },
@@ -82,6 +84,7 @@ export class UsersService {
         authMethod: externalAcount?.provider || 'email_password',
         providerUserId: externalAcount?.provider_user_id,
       };
+      console.log('userData ', userData);
 
       await this.usersRepository.upsert(userData, ['clerkId']);
       const result = await this.usersRepository.findOneBy({ clerkId: data.id });
@@ -92,13 +95,20 @@ export class UsersService {
       });
 
       if (result?.slug) {
-        await this.authService.updatePublicMetadata(userData.clerkId, {
-          user: { slug: result.slug },
-        });
+        // Actualización de metadata no-bloqueante (async)
+        this.authService
+          .updatePublicMetadata(userData.clerkId, {
+            user: { slug: result.slug },
+          })
+          .catch((error) => {
+            this.logger.warn(
+              `[create] Failed to update Clerk metadata for user ${userData.clerkId}: ${error.message}`,
+            );
+          });
       }
 
       this.logger.log(
-        `User created successfully - clerkId: ${data.id}, email: ${userData.email}`,
+        `[create] User created successfully - clerkId: ${data.id}, email: ${userData.email}`,
       );
 
       return { completed: true };
@@ -144,7 +154,7 @@ export class UsersService {
         });
 
         this.logger.warn(
-          `[UsersService][update] Email conflict: ${newEmail} is already used by another user`,
+          `[update] Email conflict: ${newEmail} is already used by another user`,
         );
 
         throw new ConflictException(
@@ -180,6 +190,49 @@ export class UsersService {
       });
 
       this.handleError(error, data.id, 'update');
+    }
+  }
+
+  async delete(deleteUserDto: DeleteUserDto) {
+    const { data, instance_id, type } = deleteUserDto;
+
+    const log = await this.createOrUpdateLog(
+      data.id,
+      type,
+      deleteUserDto,
+      instance_id,
+    );
+
+    try {
+      const user = await this.usersRepository.findOneBy({ clerkId: data.id });
+
+      if (!user) {
+        await log.updateOne({
+          statusProcess: StatusProcess.Error,
+          errorMessage: `User with clerkId ${data.id} not found`,
+        });
+        this.logger.warn(`[delete] User not found - clerkId: ${data.id}`);
+        throw new NotFoundException(`User with clerkId ${data.id} not found`);
+      }
+
+      await this.usersRepository.update(
+        { clerkId: data.id },
+        { isActive: false },
+      );
+
+      await log.updateOne({
+        statusProcess: StatusProcess.Completed,
+        errorMessage: '',
+      });
+
+      this.logger.log(`[delete] User soft deleted - clerkId: ${data.id}`);
+      return { completed: true };
+    } catch (error) {
+      await log.updateOne({
+        statusProcess: StatusProcess.Error,
+        errorMessage: error.message,
+      });
+      this.handleError(error, data.id, 'delete');
     }
   }
 }

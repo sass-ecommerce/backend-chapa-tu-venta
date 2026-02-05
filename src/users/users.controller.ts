@@ -11,6 +11,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
+import { DeleteUserDto } from './dto/delete-user.dto';
 
 @Controller('users')
 @UsePipes(
@@ -29,7 +30,7 @@ export class UsersController {
   @Public()
   @HttpCode(200)
   create(@Body() createUserDto: CreateUserDto) {
-    console.log('[UsersController][create][createUserDto]', createUserDto);
+    // console.log('[UsersController][create][createUserDto]', createUserDto);
 
     return this.usersService.create(createUserDto);
   }
@@ -41,5 +42,12 @@ export class UsersController {
   @HttpCode(200)
   update(@Body() updateUserDto: CreateUserDto) {
     return this.usersService.update(updateUserDto);
+  }
+
+  @Post('/delete')
+  @UseGuards(ClerkAuthGuard)
+  @HttpCode(200)
+  delete(@Body() deleteUserDto: DeleteUserDto) {
+    return this.usersService.delete(deleteUserDto);
   }
 }
