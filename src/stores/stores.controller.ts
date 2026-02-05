@@ -4,14 +4,12 @@ import {
   Post,
   Body,
   Param,
-  Query,
   UsePipes,
   ValidationPipe,
   UseGuards,
 } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
@@ -36,18 +34,8 @@ export class StoresController {
     return this.storesService.upsert(createStoreDto, user);
   }
 
-  @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
-    return this.storesService.findAll(paginationDto);
+  @Get(':slug')
+  findOne(@Param('slug') slug: string) {
+    return this.storesService.findOne(slug);
   }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.storesService.findOne(id);
-  }
-
-  // @Delete(':slug')
-  // remove(@Param('slug') slug: string) {
-  //   return this.storesService.remove(slug);
-  // }
 }

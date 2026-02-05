@@ -13,6 +13,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import {
   AuthenticatedUser,
   ClerkJwtPayload,
+  ClerkFullUser,
 } from '../interfaces/clerk-user.interface';
 import { AuthService } from '../auth.service';
 
@@ -62,15 +63,17 @@ export class ClerkAuthGuard implements CanActivate {
 
       // 5. Extraer claims del payload
       const sessionClaims = payload as unknown as ClerkJwtPayload;
-      this.logger.log('Session claims:', sessionClaims);
+      this.logger.log('Session claims:', Object.keys(sessionClaims));
       if (!sessionClaims.sub) {
         throw new UnauthorizedException('Invalid token payload');
       }
 
       // 5.1 Opcional: Obtener datos completos del usuario desde Clerk
-      const userData = await this.authService.getUserById(sessionClaims.sub);
+      const userData: ClerkFullUser = await this.authService.getUserById(
+        sessionClaims.sub,
+      );
 
-      this.logger.log(' Fetched full user data for userId: ', userData);
+      this.logger.log(' Fetched full user data for userId: ', userData.id);
 
       // 6. Construir el objeto usuario autenticado
       const authenticatedUser: AuthenticatedUser = {
