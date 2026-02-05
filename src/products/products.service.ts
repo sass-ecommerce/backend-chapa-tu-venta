@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -11,7 +12,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import { RawProductData } from './interface/raw-product-data.interface';
 import { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
 import { Store } from 'src/stores/entities/store.entity';
 import { User } from 'src/users/entities/user.entity';
@@ -39,7 +39,7 @@ export class ProductsService {
         `Store with id ${createProductDto.storeId} not found`,
       );
 
-    if (store.slug !== user.publicMetadata?.store.slug) {
+    if (store.slug !== user.publicMetadata?.store?.slug) {
       throw new BadRequestException(
         `You do not have permission to create products for this store`,
       );
@@ -80,6 +80,9 @@ export class ProductsService {
 
       return this.toProductResponse(productResult.data);
     } catch (error) {
+      if (error.code === '23505')
+        throw new ConflictException('SKU must be unique');
+
       this.logger.error(`Error upserting product: ${error.message}`);
       throw new InternalServerErrorException(
         'Unexpected error, check server logs',
@@ -88,35 +91,21 @@ export class ProductsService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = null, offset = 0, storeSlug } = paginationDto;
+    const { limit = 10, offset = 0, storeSlug } = paginationDto;
 
-    try {
-      const rawProducts = (await this.productRepository.query(
-        'SELECT * FROM b2b.fn_get_products($1, $2, $3)',
-        [storeSlug, limit, offset],
-      )) as RawProductData[];
-      this.logger.log('Raw products: ', rawProducts);
-      // Transformar de snake_case a camelCase
-      const products = rawProducts.map((raw) => ({
-        slug: raw.slug,
-        sku: raw.sku,
-        name: raw.name,
-        description: raw.description,
-        price: raw.price,
-        stockQuantity: raw.stock_quantity,
-        isActive: raw.is_active,
-        priceList: raw.price_list,
-        imageUri: raw.image_uri,
-        trending: raw.trending,
-      }));
-
-      return products;
-    } catch (error) {
-      this.logger.error(`Error fetching products: ${error.message}`);
-      throw new InternalServerErrorException(
-        'Unexpected error, check server logs',
-      );
+    const store = await this.storeRepository.findOne({
+      where: { slug: storeSlug, status: true },
+    });
+    if (!store) {
+      throw new NotFoundException(`Store with slug ${storeSlug} not found`);
     }
+
+    const products = await this.productRepository.find({
+      where: { store: { slug: storeSlug } },
+      take: limit,
+      skip: offset,
+    });
+    return products.map((product) => this.toProductResponse(product));
   }
 
   async findOne(slug: string) {

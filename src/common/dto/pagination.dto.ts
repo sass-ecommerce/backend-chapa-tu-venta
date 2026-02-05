@@ -6,6 +6,7 @@ import {
   IsPositive,
   IsString,
   Min,
+  IsUUID,
 } from 'class-validator';
 
 export class PaginationDto {
@@ -22,5 +23,6 @@ export class PaginationDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsUUID()
   storeSlug: string;
 }
