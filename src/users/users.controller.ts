@@ -29,7 +29,7 @@ export class UsersController {
   @Public()
   @HttpCode(200)
   create(@Body() createUserDto: CreateUserDto) {
-    console.log('[UsersController][create][createUserDto]', createUserDto);
+    // console.log('[UsersController][create][createUserDto]', createUserDto);
 
     return this.usersService.create(createUserDto);
   }
@@ -42,4 +42,11 @@ export class UsersController {
   update(@Body() updateUserDto: CreateUserDto) {
     return this.usersService.update(updateUserDto);
   }
+
+  // @Post('/delete')
+  // @UseGuards(ClerkAuthGuard)
+  // @HttpCode(200)
+  // delete(@Body() deleteUserDto: DeleteUserDto) {
+  //   return this.usersService.delete(deleteUserDto);
+  // }
 }
