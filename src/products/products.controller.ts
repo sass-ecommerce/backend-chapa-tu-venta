@@ -9,6 +9,7 @@ import {
   ValidationPipe,
   UsePipes,
   HttpCode,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -16,6 +17,7 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { ApiException } from 'src/common/exceptions/api.exception';
 
 @Controller('products')
 @UseGuards(ClerkAuthGuard)
@@ -48,7 +50,13 @@ export class ProductsController {
   }
 
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
+  findOne(@Param('slug', ParseUUIDPipe) slug: string) {
     return this.productsService.findOne(slug);
+
+    // if (!product) {
+    //   throw ApiException.notFound(`Product with slug '${slug}' not found`);
+    // }
+
+    // return product;
   }
 }
