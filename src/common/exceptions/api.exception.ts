@@ -70,4 +70,31 @@ export class ApiException extends HttpException {
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
+
+  /**
+   * Crea una excepción de conflicto (recurso duplicado)
+   */
+  static conflict(message: string = 'Resource already exists'): ApiException {
+    return new ApiException(
+      ApiResponseCode.CONFLICT,
+      message,
+      undefined,
+      HttpStatus.CONFLICT,
+    );
+  }
+
+  /**
+   * Crea una excepción de solicitud incorrecta
+   */
+  static badRequest(
+    message: string = 'Bad request',
+    details?: ValidationErrorDetail[],
+  ): ApiException {
+    return new ApiException(
+      ApiResponseCode.BAD_REQUEST,
+      message,
+      details,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
 }

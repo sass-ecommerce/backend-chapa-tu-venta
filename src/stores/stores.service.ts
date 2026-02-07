@@ -96,7 +96,7 @@ export class StoresService {
           store: { slug: storeResult.data.slug },
         });
       }
-      return storeResult.data;
+      return { slug: storeResult.data.slug };
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
