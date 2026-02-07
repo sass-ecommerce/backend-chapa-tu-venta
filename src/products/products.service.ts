@@ -30,7 +30,7 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto, user: AuthenticatedUser) {
-    //validaciones
+    //?validaciones
     const store = await this.storeRepository.findOneBy({
       id: createProductDto.storeId,
     });
@@ -78,7 +78,7 @@ export class ProductsService {
         this.logger.log('Created product: ', productResult.data);
       }
 
-      return this.toProductResponse(productResult.data);
+      return { slug: productResult.data.slug };
     } catch (error) {
       if (error.code === '23505')
         throw new ConflictException('SKU must be unique');

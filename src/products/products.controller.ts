@@ -9,6 +9,7 @@ import {
   ValidationPipe,
   UsePipes,
   HttpCode,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -48,7 +49,7 @@ export class ProductsController {
   }
 
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
+  findOne(@Param('slug', ParseUUIDPipe) slug: string) {
     return this.productsService.findOne(slug);
   }
 }

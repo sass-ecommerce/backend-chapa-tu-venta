@@ -173,6 +173,8 @@ export class UsersService {
 
       await this.usersRepository.update({ clerkId: data.id }, updateData);
 
+      const result = await this.usersRepository.findOneBy({ clerkId: data.id });
+
       await log.updateOne({
         statusProcess: StatusProcess.Completed,
         errorMessage: '',
@@ -182,7 +184,7 @@ export class UsersService {
         `User updated successfully - clerkId: ${data.id}, fields: ${Object.keys(updateData).join(', ')}`,
       );
 
-      return { completed: true };
+      return { slug: result?.slug };
     } catch (error) {
       await log.updateOne({
         statusProcess: StatusProcess.Error,
