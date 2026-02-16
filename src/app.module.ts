@@ -5,7 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
-import { authConfig, databaseConfig } from './config/configuration';
+import {
+  authConfig,
+  awsConfig,
+  databaseConfig,
+  otpConfig,
+} from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
 import { PassportAuthModule } from './passport-auth/passport-auth.module';
@@ -20,7 +25,7 @@ import { PassportAuthModule } from './passport-auth/passport-auth.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig, authConfig],
+      load: [databaseConfig, authConfig, awsConfig, otpConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

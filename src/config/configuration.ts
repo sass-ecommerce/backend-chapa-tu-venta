@@ -30,3 +30,19 @@ export const authConfig = registerAs('auth', () => ({
     rounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   },
 }));
+
+export const awsConfig = registerAs('aws', () => ({
+  ses: {
+    region: process.env.AWS_REGION || 'us-east-1',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    fromEmail: process.env.AWS_SES_FROM_EMAIL || 'noreply@example.com',
+    fromName: process.env.AWS_SES_FROM_NAME || 'Chapa Tu Venta',
+  },
+}));
+
+export const otpConfig = registerAs('otp', () => ({
+  expirationMinutes: parseInt(process.env.OTP_EXPIRATION_MINUTES || '5', 10),
+  maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS || '3', 10),
+  codeLength: parseInt(process.env.OTP_CODE_LENGTH || '6', 10),
+}));

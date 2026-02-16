@@ -34,4 +34,36 @@ export const ValidationSchema = Joi.object({
     .min(4)
     .max(31)
     .description('Bcrypt salt rounds for password hashing'),
+
+  // AWS SES Configurations
+  AWS_REGION: Joi.string()
+    .default('us-east-1')
+    .description('AWS region for SES'),
+  AWS_ACCESS_KEY_ID: Joi.string().required().description('AWS access key ID'),
+  AWS_SECRET_ACCESS_KEY: Joi.string()
+    .required()
+    .description('AWS secret access key'),
+  AWS_SES_FROM_EMAIL: Joi.string()
+    .email()
+    .required()
+    .description('Verified email address for AWS SES'),
+  AWS_SES_FROM_NAME: Joi.string()
+    .default('Chapa Tu Venta')
+    .description('Display name for email sender'),
+
+  // OTP Configurations
+  OTP_EXPIRATION_MINUTES: Joi.number()
+    .default(5)
+    .min(1)
+    .max(30)
+    .description('OTP expiration time in minutes'),
+  OTP_MAX_ATTEMPTS: Joi.number()
+    .default(3)
+    .min(1)
+    .max(10)
+    .description('Maximum OTP verification attempts'),
+  OTP_CODE_LENGTH: Joi.number()
+    .default(6)
+    .valid(4, 6, 8)
+    .description('Length of OTP code'),
 });

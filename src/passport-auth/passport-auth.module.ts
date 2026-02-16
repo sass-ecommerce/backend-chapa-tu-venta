@@ -9,9 +9,11 @@ import { AuthCredential } from './entities/auth-credential.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserMetadata } from './entities/user-metadata.entity';
+import { OtpVerification } from './entities/otp-verification.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PassportAuthController } from './passport-auth.controller';
 import { PassportAuthService } from './passport-auth.service';
+import { OtpVerificationService } from './otp-verification.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 
@@ -24,6 +26,7 @@ import { LocalStrategy } from './strategies/local.strategy';
       AuthCredential,
       RefreshToken,
       UserMetadata,
+      OtpVerification,
     ]),
     PassportModule,
     JwtModule.registerAsync({
@@ -52,6 +55,7 @@ import { LocalStrategy } from './strategies/local.strategy';
   controllers: [PassportAuthController],
   providers: [
     PassportAuthService,
+    OtpVerificationService,
     LocalStrategy,
     JwtStrategy,
     JwtAuthGuard,
@@ -60,6 +64,11 @@ import { LocalStrategy } from './strategies/local.strategy';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [PassportAuthService, JwtAuthGuard, TypeOrmModule],
+  exports: [
+    PassportAuthService,
+    OtpVerificationService,
+    JwtAuthGuard,
+    TypeOrmModule,
+  ],
 })
 export class PassportAuthModule {}

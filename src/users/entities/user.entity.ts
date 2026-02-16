@@ -47,13 +47,6 @@ export class User {
   })
   authProvider: string;
 
-  @Column('boolean', {
-    name: 'is_email_verified',
-    nullable: true,
-    default: false,
-  })
-  isEmailVerified: boolean;
-
   @Column('bigint', { name: 'store_id', nullable: true })
   storeId: number;
 

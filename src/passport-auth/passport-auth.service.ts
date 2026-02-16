@@ -16,6 +16,7 @@ import { AuthCredential } from './entities/auth-credential.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserMetadata } from './entities/user-metadata.entity';
+import { OtpVerificationService } from './otp-verification.service';
 
 @Injectable()
 export class PassportAuthService {
@@ -33,6 +34,7 @@ export class PassportAuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
+    private readonly otpVerificationService: OtpVerificationService,
   ) {
     this.bcryptRounds = this.configService.get<number>(
       'auth.bcrypt.rounds',
@@ -42,6 +44,7 @@ export class PassportAuthService {
 
   /**
    * Valida credenciales de usuario (usado por LocalStrategy)
+   * SOLO permite login si el email está verificado
    */
   async validateUser(email: string, password: string): Promise<any> {
     const credential = await this.credentialRepository.findOne({
@@ -62,11 +65,21 @@ export class PassportAuthService {
       return null;
     }
 
+    // VALIDAR QUE EL EMAIL ESTÉ VERIFICADO (usando tabla OtpVerification)
+    const isEmailVerified =
+      await this.otpVerificationService.isUserEmailVerified(credential.user.id);
+
+    if (!isEmailVerified) {
+      throw new UnauthorizedException(
+        'Email not verified. Please verify your email before logging in.',
+      );
+    }
+
     return credential.user;
   }
 
   /**
-   * Registra un nuevo usuario con credenciales (con transacción)
+   * Registra un nuevo usuario y envía OTP de verificación por email
    */
   async register(dto: RegisterDto) {
     // Crear un QueryRunner para manejar la transacción
@@ -107,7 +120,6 @@ export class PassportAuthService {
         role: 'user',
         authProvider: 'local',
         authMethod: 'password',
-        isEmailVerified: false,
       });
       const savedUser = await queryRunner.manager.save(user);
 
@@ -124,10 +136,33 @@ export class PassportAuthService {
       // Commit de la transacción si todo salió bien
       await queryRunner.commitTransaction();
 
+      // 4. ENVIAR OTP DE VERIFICACIÓN (fuera de la transacción)
+      let otpSessionId: string;
+      try {
+        const otpSession =
+          await this.otpVerificationService.createEmailVerificationOtp(
+            savedUser,
+          );
+        otpSessionId = otpSession.id;
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // No fallar el registro, pero informar al usuario
+        return {
+          message:
+            'User registered but verification email failed. Please contact support.',
+          userId: savedUser.id,
+          email: savedUser.email,
+          requiresVerification: true,
+          sessionId: null,
+        };
+      }
+
       return {
-        message: 'User registered successfully',
+        message: 'User registered successfully. Please verify your email.',
         userId: savedUser.id,
         email: savedUser.email,
+        requiresVerification: true,
+        sessionId: otpSessionId,
       };
     } catch (error) {
       // Rollback de la transacción en caso de error
@@ -147,11 +182,11 @@ export class PassportAuthService {
   }
 
   /**
-   * Login de usuario (genera access token y refresh token)
+   * Login de usuario (solo si email está verificado)
+   * Genera access token y refresh token
    */
   async login(user: User, ip?: string, userAgent?: string) {
     try {
-      // 1. Generar access token (corta duración)
       const accessTokenPayload = {
         sub: user.id,
         email: user.email,
@@ -160,7 +195,7 @@ export class PassportAuthService {
 
       const accessToken = this.jwtService.sign(accessTokenPayload);
 
-      // 2. Generar refresh token (larga duración)
+      // 2. Generar refresh token
       const refreshTokenValue = randomBytes(32).toString('hex');
       const refreshTokenHash = createHash('sha256')
         .update(refreshTokenValue)
@@ -183,7 +218,7 @@ export class PassportAuthService {
       });
       await this.refreshTokenRepository.save(refreshToken);
 
-      // 4. Actualizar last_login en credenciales
+      // 4. Actualizar last_login
       await this.credentialRepository.update(
         { userId: user.id },
         { lastLogin: new Date() },
@@ -192,7 +227,7 @@ export class PassportAuthService {
       return {
         access_token: accessToken,
         refresh_token: refreshTokenValue,
-        expires_in: 900, // 15 min en segundos
+        expires_in: 900,
         token_type: 'Bearer',
       };
     } catch (error) {
