@@ -9,9 +9,9 @@ import {
 } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { CurrentUser } from 'src/passport-auth/decorators/current-user.decorator';
-import { Public } from 'src/passport-auth/decorators/public.decorator';
-import type { AuthenticatedUser } from 'src/passport-auth/interfaces/authenticated-user.interface';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
+import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 
 @Controller('stores')
 @UsePipes(

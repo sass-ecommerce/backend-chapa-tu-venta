@@ -13,7 +13,7 @@ import {
 } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
-import { PassportAuthModule } from './passport-auth/passport-auth.module';
+import { PassportAuthModule } from './auth/passport-auth.module';
 
 @Module({
   imports: [

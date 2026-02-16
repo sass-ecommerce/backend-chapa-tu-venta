@@ -12,8 +12,8 @@ import { DataSource } from 'typeorm';
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { User } from 'src/users/entities/user.entity';
-import type { AuthenticatedUser } from 'src/passport-auth/interfaces/authenticated-user.interface';
-import { UserMetadata } from 'src/passport-auth/entities/user-metadata.entity';
+import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
+import { UserMetadata } from 'src/auth/entities/user-metadata.entity';
 import { RoleUser } from 'src/users/interface/role-user.interface';
 
 @Injectable()

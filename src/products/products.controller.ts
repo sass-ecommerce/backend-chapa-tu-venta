@@ -13,9 +13,9 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { CurrentUser } from 'src/passport-auth/decorators/current-user.decorator';
-import { Public } from 'src/passport-auth/decorators/public.decorator';
-import type { AuthenticatedUser } from 'src/passport-auth/interfaces/authenticated-user.interface';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
+import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 
 @Controller('products')
 @UsePipes(

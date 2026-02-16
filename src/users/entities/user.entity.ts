@@ -8,9 +8,9 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Store } from '../../stores/entities/store.entity';
-import { UserMetadata } from '../../passport-auth/entities/user-metadata.entity';
-import { AuthCredential } from 'src/passport-auth/entities/auth-credential.entity';
-import { RefreshToken } from 'src/passport-auth/entities/refresh-token.entity';
+import { UserMetadata } from '../../auth/entities/user-metadata.entity';
+import { AuthCredential } from 'src/auth/entities/auth-credential.entity';
+import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
 @Entity({ name: 'users', schema: 'b2b' })
 export class User {
   @PrimaryGeneratedColumn('identity', { type: 'bigint' })
