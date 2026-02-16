@@ -10,15 +10,19 @@ export class ValidationErrorDetail {
 /**
  * Respuesta estándar de éxito
  */
-export class ApiSuccessResponse<T> {
-  code: number;
-  message: string;
-  data: T[];
+export class ApiSuccessResponse {
+  code?: number;
+  message?: string;
+  data?: Record<string, any> | Record<string, any>[] | null;
 
-  constructor(data: T[], message: string = 'Results') {
-    this.code = 1;
+  constructor(
+    code?: number,
+    data?: Record<string, any> | Record<string, any>[] | null,
+    message?: string,
+  ) {
+    this.code = code;
     this.message = message;
-    this.data = Array.isArray(data) ? data : [data];
+    this.data = data;
   }
 }
 
@@ -26,14 +30,14 @@ export class ApiSuccessResponse<T> {
  * Respuesta estándar de error
  */
 export class ApiErrorResponse {
-  code: number;
-  message: string;
+  code?: number;
+  message?: string;
   details?: ValidationErrorDetail[];
-  data: [];
+  data?: Record<string, any> | Record<string, any>[] | null;
 
   constructor(
-    code: number,
-    message: string,
+    code?: number,
+    message?: string,
     details?: ValidationErrorDetail[],
   ) {
     this.code = code;

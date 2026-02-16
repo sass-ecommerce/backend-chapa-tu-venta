@@ -5,7 +5,6 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   ValidationPipe,
   UsePipes,
   HttpCode,
@@ -14,12 +13,11 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { Public } from 'src/auth/decorators/public.decorator';
+import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 
 @Controller('products')
-@UseGuards(ClerkAuthGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,
@@ -40,6 +38,7 @@ export class ProductsController {
   }
 
   @Get()
+  @Public()
   findAll(
     @Query() paginationDto: PaginationDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -49,6 +48,7 @@ export class ProductsController {
   }
 
   @Get(':slug')
+  @Public()
   findOne(@Param('slug', ParseUUIDPipe) slug: string) {
     return this.productsService.findOne(slug);
   }

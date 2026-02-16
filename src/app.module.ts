@@ -5,10 +5,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
-import { databaseConfig } from './config/configuration';
+import {
+  authConfig,
+  awsConfig,
+  databaseConfig,
+  otpConfig,
+} from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
-import { AuthModule } from './auth/auth.module';
+import { PassportAuthModule } from './auth/passport-auth.module';
 
 @Module({
   imports: [
@@ -20,7 +25,7 @@ import { AuthModule } from './auth/auth.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig],
+      load: [databaseConfig, authConfig, awsConfig, otpConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -46,7 +51,7 @@ import { AuthModule } from './auth/auth.module';
         uri: configService.get<string>('database.mongodb.uri'),
       }),
     }),
-    AuthModule,
+    PassportAuthModule,
     StoresModule,
     UsersModule,
     CommonModule,

@@ -12,7 +12,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 import { Store } from 'src/stores/entities/store.entity';
 import { User } from 'src/users/entities/user.entity';
 
@@ -39,7 +39,10 @@ export class ProductsService {
         `Store with id ${createProductDto.storeId} not found`,
       );
 
-    if (store.slug !== user.publicMetadata?.store?.slug) {
+    // Verificar permisos usando publicMetadata
+    const userStoreSlug =
+      user.publicMetadata?.storeSlug || user.publicMetadata?.store?.slug;
+    if (store.slug !== userStoreSlug) {
       throw new BadRequestException(
         `You do not have permission to create products for this store`,
       );
@@ -52,7 +55,7 @@ export class ProductsService {
     }
 
     const userEntity = await this.userRepository.findOneBy({
-      clerkId: user.userId,
+      id: user.userId,
     });
     if (!userEntity)
       throw new NotFoundException(`User with id ${user.userId} not found`);
