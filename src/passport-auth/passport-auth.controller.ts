@@ -17,7 +17,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { PassportAuthService } from './passport-auth.service';
 
-@Controller('passport-auth')
+@Controller('auth')
 @UseGuards(JwtAuthGuard) // Proteger todo el controller por defecto
 export class PassportAuthController {
   constructor(private readonly authService: PassportAuthService) {}
@@ -29,7 +29,12 @@ export class PassportAuthController {
   @Public()
   async register(@Body() registerDto: RegisterDto) {
     console.log('Registering user with email:', registerDto.email);
-    return this.authService.register(registerDto);
+    const result = await this.authService.register(registerDto);
+    return {
+      code: 201,
+      message: 'User registered successfully',
+      data: result,
+    };
   }
 
   /**
@@ -44,7 +49,12 @@ export class PassportAuthController {
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.authService.login(req.user as any, ip, userAgent);
+    const result = await this.authService.login(req.user as any, ip, userAgent);
+    return {
+      code: 200,
+      message: 'Login successful',
+      data: result,
+    };
   }
 
   /**
@@ -53,7 +63,14 @@ export class PassportAuthController {
   @Post('refresh')
   @Public()
   async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshAccessToken(refreshTokenDto.refreshToken);
+    const result = await this.authService.refreshAccessToken(
+      refreshTokenDto.refreshToken,
+    );
+    return {
+      code: 200,
+      message: 'Refresh token successful',
+      data: result,
+    };
   }
 
   /**
@@ -61,7 +78,12 @@ export class PassportAuthController {
    */
   @Post('logout')
   async logout(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.logout(refreshTokenDto.refreshToken);
+    const result = await this.authService.logout(refreshTokenDto.refreshToken);
+    return {
+      code: 200,
+      message: 'Logout successful',
+      data: result,
+    };
   }
 
   /**
@@ -70,9 +92,13 @@ export class PassportAuthController {
   @Get('me')
   getProfile(@CurrentUser() user: any) {
     return {
-      userId: user.userId,
-      email: user.email,
-      role: user.role,
+      code: 200,
+      message: 'User profile retrieved',
+      data: {
+        userId: user.userId,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 
@@ -81,6 +107,11 @@ export class PassportAuthController {
    */
   @Post('revoke-all')
   async revokeAllTokens(@CurrentUser('userId') userId: string) {
-    return this.authService.revokeAllUserTokens(userId);
+    const result = await this.authService.revokeAllUserTokens(userId);
+    return {
+      code: 200,
+      message: 'All tokens revoked',
+      data: result,
+    };
   }
 }

@@ -12,8 +12,8 @@ import { DataSource } from 'typeorm';
 import { Store } from './entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { User } from 'src/users/entities/user.entity';
-import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
-import { AuthService } from '../auth/auth.service';
+import type { AuthenticatedUser } from 'src/passport-auth/interfaces/authenticated-user.interface';
+import { UserMetadata } from 'src/passport-auth/entities/user-metadata.entity';
 import { RoleUser } from 'src/users/interface/role-user.interface';
 
 @Injectable()
@@ -28,14 +28,15 @@ export class StoresService {
     private readonly storeRepository: Repository<Store>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserMetadata)
+    private readonly metadataRepository: Repository<UserMetadata>,
     private readonly dataSource: DataSource,
-    private readonly authService: AuthService,
   ) {}
 
   async upsert(createStoreDto: CreateStoreDto, user: AuthenticatedUser) {
     //validaciones
     const userEntity = await this.userRepository.findOneBy({
-      clerkId: user.userId,
+      id: user.userId,
     });
 
     if (!userEntity)
@@ -51,6 +52,7 @@ export class StoresService {
     try {
       const storeRepo = queryRunner.manager.getRepository(Store);
       const userRepo = queryRunner.manager.getRepository(User);
+      const metadataRepo = queryRunner.manager.getRepository(UserMetadata);
 
       const storeResult: { data: Store | null; type: number } = {
         data: null,
@@ -91,11 +93,13 @@ export class StoresService {
 
       await queryRunner.commitTransaction();
 
+      // Actualizar metadata local si se creó una tienda nueva
       if (storeResult.type === this.STORE_CREATED) {
-        await this.authService.updatePublicMetadata(user.userId, {
-          store: { slug: storeResult.data.slug },
+        await this.updateUserMetadata(user.userId, {
+          storeSlug: storeResult.data.slug,
         });
       }
+
       return { slug: storeResult.data.slug };
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -106,6 +110,46 @@ export class StoresService {
       this.handleDBExceptions(error);
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  /**
+   * Actualiza el metadata público del usuario en la BD local
+   */
+  private async updateUserMetadata(
+    userId: string,
+    publicMetadata: Record<string, any>,
+  ) {
+    try {
+      // Buscar metadata existente
+      let metadata = await this.metadataRepository.findOne({
+        where: { userId },
+      });
+
+      if (metadata) {
+        // Merge con metadata existente
+        metadata.publicMetadata = {
+          ...metadata.publicMetadata,
+          ...publicMetadata,
+        };
+        metadata.updatedAt = new Date();
+        await this.metadataRepository.save(metadata);
+      } else {
+        // Crear nuevo registro de metadata
+        const newMetadata = this.metadataRepository.create({
+          userId,
+          publicMetadata,
+        });
+        await this.metadataRepository.save(newMetadata);
+      }
+
+      this.logger.log(`Updated metadata for user ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `Error updating metadata for user ${userId}:`,
+        error.message,
+      );
+      // No lanzar error, solo loguear
     }
   }
 

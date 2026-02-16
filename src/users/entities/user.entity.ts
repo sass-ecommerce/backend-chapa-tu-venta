@@ -3,10 +3,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Store } from '../../stores/entities/store.entity';
-
+import { UserMetadata } from '../../passport-auth/entities/user-metadata.entity';
+import { AuthCredential } from 'src/passport-auth/entities/auth-credential.entity';
+import { RefreshToken } from 'src/passport-auth/entities/refresh-token.entity';
 @Entity({ name: 'users', schema: 'b2b' })
 export class User {
   @PrimaryGeneratedColumn('identity', { type: 'bigint' })
@@ -20,12 +24,6 @@ export class User {
 
   @Column('varchar', { name: 'last_name', nullable: true })
   lastName: string;
-
-  @Column('varchar', { name: 'external_auth_id', nullable: true })
-  externalAuthId: string;
-
-  @Column('varchar', { name: 'clerk_id', nullable: true })
-  clerkId: string;
 
   @Column('varchar', { unique: true, nullable: false })
   email: string;
@@ -42,8 +40,19 @@ export class User {
   @Column('varchar', { name: 'auth_method', nullable: true })
   authMethod: string;
 
-  @Column('varchar', { name: 'provider_user_id', nullable: true })
-  providerUserId: string;
+  @Column('varchar', {
+    name: 'auth_provider',
+    nullable: true,
+    default: 'local',
+  })
+  authProvider: string;
+
+  @Column('boolean', {
+    name: 'is_email_verified',
+    nullable: true,
+    default: false,
+  })
+  isEmailVerified: boolean;
 
   @Column('bigint', { name: 'store_id', nullable: true })
   storeId: number;
@@ -62,4 +71,17 @@ export class User {
   @ManyToOne(() => Store, (store) => store.users, { nullable: true })
   @JoinColumn({ name: 'store_id' })
   store: Store;
+
+  @OneToOne(() => UserMetadata, (metadata: any) => metadata.user, {
+    nullable: true,
+  })
+  metadata: any;
+
+  @OneToOne(() => AuthCredential, (credential: any) => credential.user, {
+    nullable: true,
+  })
+  credential: any;
+
+  @OneToMany(() => RefreshToken, (token: any) => token.user)
+  refreshTokens: any[];
 }

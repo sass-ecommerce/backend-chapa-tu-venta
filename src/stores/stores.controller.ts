@@ -6,13 +6,12 @@ import {
   Param,
   UsePipes,
   ValidationPipe,
-  UseGuards,
 } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
-import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { CurrentUser } from 'src/passport-auth/decorators/current-user.decorator';
+import { Public } from 'src/passport-auth/decorators/public.decorator';
+import type { AuthenticatedUser } from 'src/passport-auth/interfaces/authenticated-user.interface';
 
 @Controller('stores')
 @UsePipes(
@@ -22,7 +21,6 @@ import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface
     forbidNonWhitelisted: true,
   }),
 )
-@UseGuards(ClerkAuthGuard)
 export class StoresController {
   constructor(private readonly storesService: StoresService) {}
 
@@ -35,6 +33,7 @@ export class StoresController {
   }
 
   @Get(':slug')
+  @Public()
   findOne(@Param('slug') slug: string) {
     return this.storesService.findOne(slug);
   }

@@ -5,6 +5,7 @@ This document provides coding agents with essential information about this NestJ
 ## Technology Stack
 
 - **Framework**: NestJS v11.0.1 with TypeScript v5.7.3
+- **Authentication**: Passport.js with JWT + Refresh Tokens (local strategy)
 - **Databases**: PostgreSQL 15 (TypeORM) + MongoDB 5 (Mongoose)
 - **Validation**: class-validator, class-transformer, Joi
 - **Testing**: Jest v30.0.0 with ts-jest and Supertest

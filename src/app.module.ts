@@ -8,7 +8,6 @@ import { ValidationSchema } from './config/joi.validation';
 import { authConfig, databaseConfig } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
-import { AuthModule } from './auth/auth.module';
 import { PassportAuthModule } from './passport-auth/passport-auth.module';
 
 @Module({
@@ -47,7 +46,6 @@ import { PassportAuthModule } from './passport-auth/passport-auth.module';
         uri: configService.get<string>('database.mongodb.uri'),
       }),
     }),
-    AuthModule,
     PassportAuthModule,
     StoresModule,
     UsersModule,

@@ -7,28 +7,22 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-@Entity({ name: 'auth_credentials', schema: 'b2b' })
-export class AuthCredential {
+@Entity({ name: 'user_metadata', schema: 'b2b' })
+export class UserMetadata {
   @PrimaryGeneratedColumn('identity', { type: 'bigint' })
   id: string;
 
   @Column('bigint', { name: 'user_id', unique: true })
   userId: string;
 
-  @Column('varchar', { unique: true })
-  email: string;
+  @Column('jsonb', { name: 'public_metadata', default: {} })
+  publicMetadata: Record<string, any>;
 
-  @Column('varchar', { name: 'password_hash' })
-  passwordHash: string;
+  @Column('jsonb', { name: 'private_metadata', default: {} })
+  privateMetadata: Record<string, any>;
 
-  @Column('boolean', { name: 'is_verified', default: false })
-  isVerified: boolean;
-
-  @Column('varchar', { name: 'verification_token', nullable: true })
-  verificationToken: string;
-
-  @Column('timestamptz', { name: 'last_login', nullable: true })
-  lastLogin: Date;
+  @Column('jsonb', { name: 'unsafe_metadata', default: {} })
+  unsafeMetadata: Record<string, any>;
 
   @Column('timestamptz', {
     name: 'created_at',
@@ -40,7 +34,7 @@ export class AuthCredential {
   updatedAt: Date;
 
   // Relations
-  @OneToOne(() => User, (user) => user.credential)
+  @OneToOne(() => User, (user) => user.metadata)
   @JoinColumn({ name: 'user_id' })
   user: User;
 }

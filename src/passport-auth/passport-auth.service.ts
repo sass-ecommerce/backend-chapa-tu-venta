@@ -13,20 +13,23 @@ import { createHash, randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { RegisterDto } from './dto/register.dto';
 import { AuthCredential } from './entities/auth-credential.entity';
-import { PassportUser } from './entities/passport-user.entity';
+import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { UserMetadata } from './entities/user-metadata.entity';
 
 @Injectable()
 export class PassportAuthService {
   private readonly bcryptRounds: number;
 
   constructor(
-    @InjectRepository(PassportUser)
-    private readonly userRepository: Repository<PassportUser>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     @InjectRepository(AuthCredential)
     private readonly credentialRepository: Repository<AuthCredential>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(UserMetadata)
+    private readonly metadataRepository: Repository<UserMetadata>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
@@ -75,7 +78,7 @@ export class PassportAuthService {
 
     try {
       // 1. Verificar que email no exista
-      const existingUser = await queryRunner.manager.findOne(PassportUser, {
+      const existingUser = await queryRunner.manager.findOne(User, {
         where: { email: dto.email },
       });
 
@@ -95,13 +98,16 @@ export class PassportAuthService {
         throw new ConflictException('Email already registered');
       }
 
-      // 2. Crear usuario en tabla passport_users
-      const user = queryRunner.manager.create(PassportUser, {
+      // 2. Crear usuario en tabla users
+      const user = queryRunner.manager.create(User, {
         email: dto.email,
         firstName: dto.firstName,
         lastName: dto.lastName,
         isActive: true,
         role: 'user',
+        authProvider: 'local',
+        authMethod: 'password',
+        isEmailVerified: false,
       });
       const savedUser = await queryRunner.manager.save(user);
 
@@ -143,7 +149,7 @@ export class PassportAuthService {
   /**
    * Login de usuario (genera access token y refresh token)
    */
-  async login(user: PassportUser, ip?: string, userAgent?: string) {
+  async login(user: User, ip?: string, userAgent?: string) {
     try {
       // 1. Generar access token (corta duración)
       const accessTokenPayload = {

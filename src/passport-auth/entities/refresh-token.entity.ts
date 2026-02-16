@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PassportUser } from './passport-user.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity({ name: 'refresh_tokens', schema: 'b2b' })
 export class RefreshToken {
@@ -52,7 +52,7 @@ export class RefreshToken {
   createdAt: Date;
 
   // Relations
-  @ManyToOne(() => PassportUser, (user) => user.refreshTokens)
+  @ManyToOne(() => User, (user) => user.refreshTokens)
   @JoinColumn({ name: 'user_id' })
-  user: PassportUser;
+  user: User;
 }

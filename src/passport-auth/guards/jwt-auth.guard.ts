@@ -33,6 +33,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
 
   handleRequest(err: any, user: any) {
     if (err || !user) {
+      console.error('JWT validation failed:', err);
       throw err || new UnauthorizedException('Invalid or expired token');
     }
     return user;

@@ -15,36 +15,27 @@ import { ApiSuccessResponse } from '../dto/api-response.dto';
 @Injectable()
 export class TransformResponseInterceptor<T> implements NestInterceptor<
   T,
-  ApiSuccessResponse<T>
+  ApiSuccessResponse
 > {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<ApiSuccessResponse<T>> {
+  ): Observable<ApiSuccessResponse> {
     return next.handle().pipe(
       //se ejecuta después de que el controlador maneja la solicitud
 
       map((data) => {
-        // Si la respuesta ya tiene el formato estándar, la retorna tal cual
-        if (
-          data &&
-          typeof data === 'object' &&
-          'code' in data &&
-          'data' in data
-        ) {
-          return data;
-        }
+        const {
+          code = 1,
+          message = 'Results',
+          data: dataValue = null,
+        } = data as {
+          code?: number;
+          message?: string;
+          data?: Record<string, any> | Record<string, any>[] | null;
+        };
 
-        // Si no hay datos, retorna array vacío con mensaje
-        if (data === null || data === undefined) {
-          return new ApiSuccessResponse([], 'No data found');
-        }
-
-        // Transforma la respuesta al formato estándar
-        // Asegura que data siempre sea un array
-        const dataArray = Array.isArray(data) ? data : [data];
-
-        return new ApiSuccessResponse(dataArray, 'Results');
+        return new ApiSuccessResponse(code, dataValue, message);
       }),
     );
   }

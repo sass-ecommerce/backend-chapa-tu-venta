@@ -1,22 +1,30 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { authConfig } from '../config/configuration';
 import { AuthCredential } from './entities/auth-credential.entity';
-import { PassportUser } from './entities/passport-user.entity';
+import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { UserMetadata } from './entities/user-metadata.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PassportAuthController } from './passport-auth.controller';
 import { PassportAuthService } from './passport-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 
+@Global()
 @Module({
   imports: [
     ConfigModule.forFeature(authConfig),
-    TypeOrmModule.forFeature([PassportUser, AuthCredential, RefreshToken]),
+    TypeOrmModule.forFeature([
+      User,
+      AuthCredential,
+      RefreshToken,
+      UserMetadata,
+    ]),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -42,7 +50,16 @@ import { LocalStrategy } from './strategies/local.strategy';
     }),
   ],
   controllers: [PassportAuthController],
-  providers: [PassportAuthService, LocalStrategy, JwtStrategy, JwtAuthGuard],
-  exports: [PassportAuthService, JwtAuthGuard],
+  providers: [
+    PassportAuthService,
+    LocalStrategy,
+    JwtStrategy,
+    JwtAuthGuard,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
+  exports: [PassportAuthService, JwtAuthGuard, TypeOrmModule],
 })
 export class PassportAuthModule {}
