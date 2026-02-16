@@ -16,3 +16,17 @@ export const databaseConfig = registerAs('database', () => ({
     schema: process.env.POSTGRES_SCHEMA || 'mydb',
   },
 }));
+
+export const authConfig = registerAs('auth', () => ({
+  jwt: {
+    secret: process.env.JWT_SECRET || 'default-secret-change-in-production',
+    accessTokenExpiration: process.env.JWT_ACCESS_TOKEN_EXPIRATION || '15m',
+    refreshTokenExpirationDays: parseInt(
+      process.env.JWT_REFRESH_TOKEN_EXPIRATION_DAYS || '7',
+      10,
+    ),
+  },
+  bcrypt: {
+    rounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
+  },
+}));

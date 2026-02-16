@@ -26,4 +26,20 @@ export const ValidationSchema = Joi.object({
   CLERK_PUBLISHABLE_KEY: Joi.string()
     .required()
     .description('Clerk publishable key'),
+
+  // Passport.js JWT Authentication
+  JWT_SECRET: Joi.string()
+    .required()
+    .description('JWT secret key for signing tokens'),
+  JWT_ACCESS_TOKEN_EXPIRATION: Joi.string()
+    .default('15m')
+    .description('JWT access token expiration time (e.g., 15m, 1h)'),
+  JWT_REFRESH_TOKEN_EXPIRATION_DAYS: Joi.number()
+    .default(7)
+    .description('Refresh token expiration in days'),
+  BCRYPT_ROUNDS: Joi.number()
+    .default(10)
+    .min(4)
+    .max(31)
+    .description('Bcrypt salt rounds for password hashing'),
 });
