@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +14,7 @@ import { OtpVerificationService } from './otp-verification.service';
 
 @Injectable()
 export class PassportAuthService {
+  protected readonly logger = new Logger(PassportAuthService.name);
   private readonly bcryptRounds: number;
 
   constructor(
@@ -70,9 +65,7 @@ export class PassportAuthService {
       await this.otpVerificationService.isUserEmailVerified(credential.user.id);
 
     if (!isEmailVerified) {
-      throw new UnauthorizedException(
-        'Email not verified. Please verify your email before logging in.',
-      );
+      throw new NotFoundException('Email not verified');
     }
 
     return credential.user;
@@ -96,7 +89,7 @@ export class PassportAuthService {
       });
 
       if (existingUser) {
-        throw new ConflictException('Email already registered');
+        throw new NotFoundException(`Email already exists`);
       }
 
       // Verificar también en credenciales (por si acaso)
@@ -108,7 +101,7 @@ export class PassportAuthService {
       );
 
       if (existingCredential) {
-        throw new ConflictException('Email already registered');
+        throw new NotFoundException(`Email already exists`);
       }
 
       // 2. Crear usuario en tabla users
@@ -134,49 +127,22 @@ export class PassportAuthService {
       await queryRunner.manager.save(credential);
 
       // Commit de la transacción si todo salió bien
-      await queryRunner.commitTransaction();
 
       // 4. ENVIAR OTP DE VERIFICACIÓN (fuera de la transacción)
-      let otpSessionId: string;
-      try {
-        const otpSession =
-          await this.otpVerificationService.createEmailVerificationOtp(
-            savedUser,
-          );
-        otpSessionId = otpSession.id;
-      } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-        // No fallar el registro, pero informar al usuario
-        return {
-          message:
-            'User registered but verification email failed. Please contact support.',
-          userId: savedUser.id,
-          email: savedUser.email,
-          requiresVerification: true,
-          sessionId: null,
-        };
-      }
+      // let otpSessionId: string;
+      const otpVerification =
+        await this.otpVerificationService.createEmailVerificationOtp(savedUser);
+
+      await queryRunner.commitTransaction();
 
       return {
-        message: 'User registered successfully. Please verify your email.',
-        userId: savedUser.id,
-        email: savedUser.email,
-        requiresVerification: true,
-        sessionId: otpSessionId,
+        sessionId: otpVerification.id,
       };
     } catch (error) {
-      // Rollback de la transacción en caso de error
       await queryRunner.rollbackTransaction();
 
-      // Re-lanzar el error si es de negocio (ConflictException)
-      if (error instanceof ConflictException) {
-        throw error;
-      }
-
-      // Manejar errores de BD
-      throw new InternalServerErrorException();
+      throw error;
     } finally {
-      // Liberar el QueryRunner
       await queryRunner.release();
     }
   }
@@ -186,200 +152,176 @@ export class PassportAuthService {
    * Genera access token y refresh token
    */
   async login(user: User, ip?: string, userAgent?: string) {
-    try {
-      const accessTokenPayload = {
-        sub: user.id,
-        email: user.email,
-        role: user.role || 'user',
-      };
+    const accessTokenPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role || 'user',
+    };
 
-      const accessToken = this.jwtService.sign(accessTokenPayload);
+    const accessToken = this.jwtService.sign(accessTokenPayload);
 
-      // 2. Generar refresh token
-      const refreshTokenValue = randomBytes(32).toString('hex');
-      const refreshTokenHash = createHash('sha256')
-        .update(refreshTokenValue)
-        .digest('hex');
+    // 2. Generar refresh token
+    const refreshTokenValue = randomBytes(32).toString('hex');
+    const refreshTokenHash = createHash('sha256')
+      .update(refreshTokenValue)
+      .digest('hex');
 
-      const expiresAt = new Date();
-      const refreshExpDays = this.configService.get<number>(
-        'auth.jwt.refreshTokenExpirationDays',
-        7,
-      );
-      expiresAt.setDate(expiresAt.getDate() + refreshExpDays);
+    const expiresAt = new Date();
+    const refreshExpDays = this.configService.get<number>(
+      'auth.jwt.refreshTokenExpirationDays',
+      7,
+    );
+    expiresAt.setDate(expiresAt.getDate() + refreshExpDays);
 
-      // 3. Guardar refresh token en BD
-      const refreshToken = this.refreshTokenRepository.create({
-        tokenHash: refreshTokenHash,
-        userId: user.id,
-        expiresAt,
-        ipAddress: ip,
-        userAgent,
-      });
-      await this.refreshTokenRepository.save(refreshToken);
+    // 3. Guardar refresh token en BD
+    const refreshToken = this.refreshTokenRepository.create({
+      tokenHash: refreshTokenHash,
+      userId: user.id,
+      expiresAt,
+      ipAddress: ip,
+      userAgent,
+    });
+    await this.refreshTokenRepository.save(refreshToken);
 
-      // 4. Actualizar last_login
-      await this.credentialRepository.update(
-        { userId: user.id },
-        { lastLogin: new Date() },
-      );
+    // 4. Actualizar last_login
+    await this.credentialRepository.update(
+      { userId: user.id },
+      { lastLogin: new Date() },
+    );
 
-      return {
-        access_token: accessToken,
-        refresh_token: refreshTokenValue,
-        expires_in: 900,
-        token_type: 'Bearer',
-      };
-    } catch (error) {
-      this.handleDBExceptions(error);
-    }
+    return {
+      access_token: accessToken,
+      refresh_token: refreshTokenValue,
+      expires_in: 900,
+      token_type: 'Bearer',
+    };
   }
 
   /**
    * Renovar access token usando refresh token
    */
   async refreshAccessToken(refreshTokenValue: string) {
-    try {
-      // 1. Hash del token recibido
-      const tokenHash = createHash('sha256')
-        .update(refreshTokenValue)
-        .digest('hex');
+    // 1. Hash del token recibido
+    const tokenHash = createHash('sha256')
+      .update(refreshTokenValue)
+      .digest('hex');
 
-      // 2. Buscar token en BD
-      const refreshToken = await this.refreshTokenRepository.findOne({
-        where: { tokenHash },
-        relations: ['user'],
-      });
+    // 2. Buscar token en BD
+    const refreshToken = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+      relations: ['user'],
+    });
 
-      if (!refreshToken) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      // 3. DETECCIÓN DE REUTILIZACIÓN (token rotation attack)
-      if (refreshToken.isRevoked) {
-        // Token fue revocado, posible ataque
-        // Revocar toda la familia de tokens
-        await this.revokeTokenFamily(
-          refreshToken.tokenFamily,
-          'Token reuse detected',
-        );
-        throw new UnauthorizedException(
-          'Token reuse detected. All tokens revoked.',
-        );
-      }
-
-      // 4. Verificar expiración
-      if (new Date() > refreshToken.expiresAt) {
-        throw new UnauthorizedException('Refresh token expired');
-      }
-
-      // 5. Generar nuevo access token
-      const accessToken = this.jwtService.sign({
-        sub: refreshToken.user.id,
-        email: refreshToken.user.email,
-        role: refreshToken.user.role || 'user',
-      });
-
-      // 6. Rotación de refresh token
-      const newRefreshTokenValue = randomBytes(32).toString('hex');
-      const newRefreshTokenHash = createHash('sha256')
-        .update(newRefreshTokenValue)
-        .digest('hex');
-
-      const expiresAt = new Date();
-      const refreshExpDays = this.configService.get<number>(
-        'auth.jwt.refreshTokenExpirationDays',
-        7,
-      );
-      expiresAt.setDate(expiresAt.getDate() + refreshExpDays);
-
-      // 7. Crear nuevo refresh token (misma familia)
-      const newRefreshToken = this.refreshTokenRepository.create({
-        tokenHash: newRefreshTokenHash,
-        userId: refreshToken.userId,
-        expiresAt,
-        tokenFamily: refreshToken.tokenFamily,
-        ipAddress: refreshToken.ipAddress,
-        userAgent: refreshToken.userAgent,
-      });
-      await this.refreshTokenRepository.save(newRefreshToken);
-
-      // 8. Revocar token antiguo
-      await this.refreshTokenRepository.update(refreshToken.id, {
-        isRevoked: true,
-        revocationReason: 'replaced',
-        revokedAt: new Date(),
-        replacedByToken: newRefreshTokenHash,
-      });
-
-      return {
-        access_token: accessToken,
-        refresh_token: newRefreshTokenValue,
-        expires_in: 900,
-        token_type: 'Bearer',
-      };
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      this.handleDBExceptions(error);
+    if (!refreshToken) {
+      throw new NotFoundException('Invalid refresh token');
     }
+
+    // 3. DETECCIÓN DE REUTILIZACIÓN (token rotation attack)
+    if (refreshToken.isRevoked) {
+      // Token fue revocado, posible ataque
+      // Revocar toda la familia de tokens
+      await this.revokeTokenFamily(
+        refreshToken.tokenFamily,
+        'Token reuse detected',
+      );
+      throw new NotFoundException('Token reuse detected');
+    }
+
+    // 4. Verificar expiración
+    if (new Date() > refreshToken.expiresAt) {
+      throw new NotFoundException('Refresh token expired');
+    }
+
+    // 5. Generar nuevo access token
+    const accessToken = this.jwtService.sign({
+      sub: refreshToken.user.id,
+      email: refreshToken.user.email,
+      role: refreshToken.user.role || 'user',
+    });
+
+    // 6. Rotación de refresh token
+    const newRefreshTokenValue = randomBytes(32).toString('hex');
+    const newRefreshTokenHash = createHash('sha256')
+      .update(newRefreshTokenValue)
+      .digest('hex');
+
+    const expiresAt = new Date();
+    const refreshExpDays = this.configService.get<number>(
+      'auth.jwt.refreshTokenExpirationDays',
+      7,
+    );
+    expiresAt.setDate(expiresAt.getDate() + refreshExpDays);
+
+    // 7. Crear nuevo refresh token (misma familia)
+    const newRefreshToken = this.refreshTokenRepository.create({
+      tokenHash: newRefreshTokenHash,
+      userId: refreshToken.userId,
+      expiresAt,
+      tokenFamily: refreshToken.tokenFamily,
+      ipAddress: refreshToken.ipAddress,
+      userAgent: refreshToken.userAgent,
+    });
+    await this.refreshTokenRepository.save(newRefreshToken);
+
+    // 8. Revocar token antiguo
+    await this.refreshTokenRepository.update(refreshToken.id, {
+      isRevoked: true,
+      revocationReason: 'replaced',
+      revokedAt: new Date(),
+      replacedByToken: newRefreshTokenHash,
+    });
+
+    return {
+      access_token: accessToken,
+      refresh_token: newRefreshTokenValue,
+      expires_in: 900,
+      token_type: 'Bearer',
+    };
   }
 
   /**
-   * Logout (revocar un refresh token específico)
+   * Invalidar refresh token (logout)
    */
   async logout(refreshTokenValue: string) {
-    try {
-      const tokenHash = createHash('sha256')
-        .update(refreshTokenValue)
-        .digest('hex');
+    const tokenHash = createHash('sha256')
+      .update(refreshTokenValue)
+      .digest('hex');
 
-      const refreshToken = await this.refreshTokenRepository.findOne({
-        where: { tokenHash },
-      });
+    const refreshToken = await this.refreshTokenRepository.findOne({
+      where: { tokenHash },
+    });
 
-      if (!refreshToken) {
-        throw new UnauthorizedException('Invalid refresh token');
-      }
-
-      await this.refreshTokenRepository.update(refreshToken.id, {
-        isRevoked: true,
-        revocationReason: 'logout',
-        revokedAt: new Date(),
-      });
-
-      return {
-        message: 'Logged out successfully',
-      };
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-      this.handleDBExceptions(error);
+    if (!refreshToken) {
+      throw new NotFoundException('Invalid refresh token');
     }
+
+    await this.refreshTokenRepository.update(refreshToken.id, {
+      isRevoked: true,
+      revocationReason: 'logout',
+      revokedAt: new Date(),
+    });
+
+    return {
+      message: 'Logged out successfully',
+    };
   }
 
   /**
    * Revocar todos los tokens de un usuario
    */
   async revokeAllUserTokens(userId: string) {
-    try {
-      await this.refreshTokenRepository.update(
-        { userId, isRevoked: false },
-        {
-          isRevoked: true,
-          revocationReason: 'revoke_all',
-          revokedAt: new Date(),
-        },
-      );
+    await this.refreshTokenRepository.update(
+      { userId, isRevoked: false },
+      {
+        isRevoked: true,
+        revocationReason: 'revoke_all',
+        revokedAt: new Date(),
+      },
+    );
 
-      return {
-        message: 'All tokens revoked successfully',
-      };
-    } catch (error) {
-      this.handleDBExceptions(error);
-    }
+    return {
+      message: 'All tokens revoked successfully',
+    };
   }
 
   /**
@@ -396,20 +338,6 @@ export class PassportAuthService {
         revocationReason: reason,
         revokedAt: new Date(),
       },
-    );
-  }
-
-  /**
-   * Manejo centralizado de excepciones de BD
-   */
-  private handleDBExceptions(error: any): never {
-    if (error?.code === '23505') {
-      throw new BadRequestException(error.detail);
-    }
-
-    console.error(error);
-    throw new InternalServerErrorException(
-      'Unexpected error, check server logs',
     );
   }
 }

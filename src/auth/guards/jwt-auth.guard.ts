@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -11,6 +12,8 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(private reflector: Reflector) {
     super();
   }
@@ -33,7 +36,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
 
   handleRequest(err: any, user: any) {
     if (err || !user) {
-      console.error('JWT validation failed:', err);
+      this.logger.warn(
+        `JWT validation failed: ${err?.message || 'No user found'}`,
+      );
       throw err || new UnauthorizedException('Invalid or expired token');
     }
     return user;

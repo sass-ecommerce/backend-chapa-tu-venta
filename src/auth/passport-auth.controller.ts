@@ -4,6 +4,7 @@ import {
   Get,
   Headers,
   Ip,
+  Logger,
   Post,
   Request,
   UseGuards,
@@ -19,10 +20,13 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { PassportAuthService } from './passport-auth.service';
 import { OtpVerificationService } from './otp-verification.service';
+import { User } from 'src/users/entities/user.entity';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard) // Proteger todo el controller por defecto
 export class PassportAuthController {
+  private readonly logger = new Logger(PassportAuthController.name);
+
   constructor(
     private readonly authService: PassportAuthService,
     private readonly otpService: OtpVerificationService,
@@ -34,15 +38,13 @@ export class PassportAuthController {
   @Post('register')
   @Public()
   async register(@Body() registerDto: RegisterDto) {
-    console.log('Registering user with email:', registerDto.email);
+    this.logger.log(`Registering user with email: ${registerDto.email}`);
     const result = await this.authService.register(registerDto);
+
     return {
       code: 201,
-      message: result.message,
+      message: 'User registered successfully. Please verify your email.',
       data: {
-        userId: result.userId,
-        email: result.email,
-        requiresVerification: result.requiresVerification,
         sessionId: result.sessionId,
       },
     };
@@ -62,10 +64,7 @@ export class PassportAuthController {
     return {
       code: 200,
       message: result.message,
-      data: {
-        userId: result.userId,
-        email: result.email,
-      },
+      data: {},
     };
   }
 
@@ -101,7 +100,11 @@ export class PassportAuthController {
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    const result = await this.authService.login(req.user as any, ip, userAgent);
+    const result = await this.authService.login(
+      req.user as User,
+      ip,
+      userAgent,
+    );
 
     return {
       code: 200,
