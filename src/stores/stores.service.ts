@@ -1,10 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DataSource } from 'typeorm';
@@ -15,10 +9,16 @@ import { User } from 'src/users/entities/user.entity';
 import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 import { UserMetadata } from 'src/auth/entities/user-metadata.entity';
 import { RoleUser } from 'src/users/interface/role-user.interface';
+import { DbExceptionHandlerService } from 'src/common/services/db-exception-handler.service';
+import {
+  StoreNotFoundException,
+  UserNotFoundException,
+  OwnerEmailMismatchException,
+} from './exceptions/store.exceptions';
 
 @Injectable()
 export class StoresService {
-  private readonly logger = new Logger('StoresService');
+  protected readonly logger = new Logger(StoresService.name);
   // Constantes de tipos de operación
   private readonly STORE_CREATED = 1;
   private readonly STORE_UPDATED = 2;
@@ -31,6 +31,7 @@ export class StoresService {
     @InjectRepository(UserMetadata)
     private readonly metadataRepository: Repository<UserMetadata>,
     private readonly dataSource: DataSource,
+    private readonly dbExceptionHandler: DbExceptionHandlerService,
   ) {}
 
   async upsert(createStoreDto: CreateStoreDto, user: AuthenticatedUser) {
@@ -39,11 +40,10 @@ export class StoresService {
       id: user.userId,
     });
 
-    if (!userEntity)
-      throw new NotFoundException(`User with id ${user.userId} not found`);
+    if (!userEntity) throw new UserNotFoundException(user.userId);
 
     if (userEntity.email !== createStoreDto.ownerEmail.toLowerCase())
-      throw new ConflictException(`Owner email does not match with user email`);
+      throw new OwnerEmailMismatchException();
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -52,7 +52,7 @@ export class StoresService {
     try {
       const storeRepo = queryRunner.manager.getRepository(Store);
       const userRepo = queryRunner.manager.getRepository(User);
-      const metadataRepo = queryRunner.manager.getRepository(UserMetadata);
+      // const metadataRepo = queryRunner.manager.getRepository(UserMetadata);
 
       const storeResult: { data: Store | null; type: number } = {
         data: null,
@@ -64,9 +64,7 @@ export class StoresService {
           id: userEntity.storeId,
         });
         if (!storeResult.data)
-          throw new NotFoundException(
-            `Store with id ${userEntity.storeId} not found`,
-          );
+          throw new StoreNotFoundException(String(userEntity.storeId));
         storeRepo.merge(storeResult.data, createStoreDto);
         await storeRepo.save(storeResult.data);
 
@@ -107,7 +105,7 @@ export class StoresService {
         `[StoreService] [upsert] Error upserting store: ${error.message}`,
         error.stack,
       );
-      this.handleDBExceptions(error);
+      this.dbExceptionHandler.handle(error, 'upsert');
     } finally {
       await queryRunner.release();
     }
@@ -122,7 +120,7 @@ export class StoresService {
   ) {
     try {
       // Buscar metadata existente
-      let metadata = await this.metadataRepository.findOne({
+      const metadata = await this.metadataRepository.findOne({
         where: { userId },
       });
 
@@ -160,19 +158,9 @@ export class StoresService {
     });
 
     if (!store) {
-      throw new NotFoundException(`Store with slug ${slug} not found`);
+      throw new StoreNotFoundException(slug);
     }
 
     return store;
-  }
-
-  private handleDBExceptions(error: any): never {
-    if (error?.code === '23505') {
-      throw new ConflictException(error.detail);
-    }
-    // console.error(error);
-    throw new InternalServerErrorException(
-      'Unexpected error, check server logs',
-    );
   }
 }

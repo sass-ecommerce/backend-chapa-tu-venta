@@ -4,146 +4,177 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  BadRequestException,
+  Injectable,
 } from '@nestjs/common';
-import { Response } from 'express';
-import {
-  ApiErrorResponse,
-  ApiResponseCode,
-  ValidationErrorDetail,
-} from '../dto/api-response.dto';
+import { Response, Request } from 'express';
+import { AppLoggerService } from '../logging/logger.service';
+import { ApiErrorResponse } from '../interfaces/response.interface';
+import { ApiException } from '../exceptions/api.exception';
 
 /**
- * Filter global para manejar todas las excepciones
- * y retornarlas en el formato estándar
+ * Global exception filter that catches all exceptions and formats them
+ * according to the ApiErrorResponse interface
  */
 @Catch()
+@Injectable()
 export class HttpExceptionFilter implements ExceptionFilter {
+  constructor(private readonly logger: AppLoggerService) {
+    this.logger.setContext('HttpExceptionFilter');
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
-    const { status, errorResponse } = this.buildErrorResponse(exception);
+    // Determine HTTP status code
+    const httpStatus =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    response.status(status).json(errorResponse);
+    // Extract error details
+    const errorResponse = this.buildErrorResponse(exception, httpStatus);
+
+    // Log the error with context
+    this.logError(exception, request, httpStatus);
+
+    // Send formatted response
+    response.status(httpStatus).json(errorResponse);
   }
 
   /**
-   * Construye la respuesta de error basada en el tipo de excepción
+   * Builds the error response according to ApiErrorResponse interface
    */
-  private buildErrorResponse(exception: unknown): {
-    status: number;
-    errorResponse: ApiErrorResponse;
-  } {
+  private buildErrorResponse(
+    exception: unknown,
+    httpStatus: number,
+  ): ApiErrorResponse {
+    // Handle ApiException (custom exceptions with business code and errors array)
+    if (exception instanceof ApiException) {
+      const exceptionResponse = exception.getResponse() as any;
+      return {
+        code: exceptionResponse.code || httpStatus,
+        message: exceptionResponse.message || exception.message,
+        errors: this.formatErrors(exceptionResponse.errors),
+      };
+    }
+
+    // Handle standard NestJS HttpException
     if (exception instanceof HttpException) {
-      return this.handleHttpException(exception);
+      const exceptionResponse = exception.getResponse();
+
+      // Handle validation errors from class-validator
+      if (
+        typeof exceptionResponse === 'object' &&
+        'message' in exceptionResponse
+      ) {
+        const responseObj = exceptionResponse as any;
+
+        // ValidationPipe returns errors in 'message' field as array
+        if (Array.isArray(responseObj.message)) {
+          return {
+            code: httpStatus,
+            message: 'Validation failed',
+            errors: responseObj.message,
+          };
+        }
+
+        // Single message error
+        return {
+          code: httpStatus,
+          message: responseObj.message || exception.message,
+          errors: null,
+        };
+      }
+
+      // String response
+      return {
+        code: httpStatus,
+        message:
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : exception.message,
+        errors: null,
+      };
     }
 
-    // Errores no HTTP (errores inesperados)
-    console.error('Unexpected error:', exception);
+    // Handle unexpected errors (non-HTTP exceptions)
     return {
-      status: HttpStatus.INTERNAL_SERVER_ERROR,
-      errorResponse: new ApiErrorResponse(
-        ApiResponseCode.INTERNAL_ERROR,
-        'Internal server error',
-      ),
+      code: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: this.getInternalErrorMessage(exception),
+      errors: null,
     };
   }
 
   /**
-   * Maneja excepciones HTTP
+   * Formats the errors array to ensure all items are strings
    */
-  private handleHttpException(exception: HttpException): {
-    status: number;
-    errorResponse: ApiErrorResponse;
-  } {
-    const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse();
-
-    // ✅ OPTIMIZACIÓN: Si ya es ApiErrorResponse, úsalo directamente
-    if (exceptionResponse instanceof ApiErrorResponse) {
-      return {
-        status,
-        errorResponse: exceptionResponse,
-      };
+  private formatErrors(errors: any[] | undefined): string[] | null {
+    if (!errors || !Array.isArray(errors) || errors.length === 0) {
+      return null;
     }
 
-    // Maneja errores de validación (class-validator)
-    if (
-      exception instanceof BadRequestException &&
-      typeof exceptionResponse === 'object' &&
-      'message' in exceptionResponse
-    ) {
-      const validationErrors = this.parseValidationErrors(
-        exceptionResponse as any,
-      );
+    return errors.map((error) => {
+      // If already a string, return as-is
+      if (typeof error === 'string') {
+        return error;
+      }
 
-      return {
-        status,
-        errorResponse: new ApiErrorResponse(
-          ApiResponseCode.VALIDATION_ERROR,
-          'Validation error',
-          validationErrors,
-        ),
-      };
-    }
+      // If object with common error properties, format descriptively
+      if (typeof error === 'object' && error !== null) {
+        // Handle validation error format: { field, message }
+        if (error.field && error.message) {
+          return `${error.field}: ${error.message}`;
+        }
 
-    // Otros errores HTTP
-    const code = this.getErrorCode(status);
-    const message =
-      typeof exceptionResponse === 'string'
-        ? exceptionResponse
-        : (exceptionResponse as any).message || 'Error';
+        // Handle validation error format: { code, path, message }
+        if (error.path && error.message) {
+          const pathStr = Array.isArray(error.path)
+            ? error.path.join('.')
+            : error.path;
+          return `${pathStr}: ${error.message}`;
+        }
 
-    return {
-      status,
-      errorResponse: new ApiErrorResponse(
-        code,
-        typeof message === 'string' ? message : String(message),
-      ),
-    };
-  }
+        // Handle property-based errors
+        if (error.property && error.constraints) {
+          const constraintMessages = Object.values(error.constraints);
+          return constraintMessages.join(', ');
+        }
 
-  /**
-   * Convierte los mensajes de class-validator al formato de detalles
-   */
-  private parseValidationErrors(
-    exceptionResponse: any,
-  ): ValidationErrorDetail[] {
-    const messages = Array.isArray(exceptionResponse.message)
-      ? exceptionResponse.message
-      : [exceptionResponse.message];
+        // Fallback: stringify the object
+        return JSON.stringify(error);
+      }
 
-    return messages.map((msg: string) => {
-      // Intenta extraer el campo del mensaje
-      // Ej: "email must be an email" -> path: ["email"]
-      const fieldMatch = msg.match(/^(\w+)\s/);
-      const field = fieldMatch ? fieldMatch[1] : 'unknown';
-
-      return {
-        code: 'validation_error',
-        path: [field],
-        message: msg,
-      };
+      // Fallback: convert to string
+      return String(error);
     });
   }
 
   /**
-   * Mapea HTTP status codes a códigos de respuesta personalizados
+   * Returns appropriate error message for internal errors
+   * based on environment (development vs production)
    */
-  private getErrorCode(status: number): ApiResponseCode {
-    switch (status) {
-      case 404:
-        return ApiResponseCode.NOT_FOUND;
-      case 409:
-        return ApiResponseCode.CONFLICT;
-      case 401:
-      case 403:
-        return ApiResponseCode.UNAUTHORIZED;
-      case 400:
-        return ApiResponseCode.BAD_REQUEST;
-      default:
-        return ApiResponseCode.INTERNAL_ERROR;
+  private getInternalErrorMessage(exception: unknown): string {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
+    if (isDevelopment && exception instanceof Error) {
+      return exception.message;
+    }
+
+    return 'Internal server error';
+  }
+
+  /**
+   * Logs error details with context
+   */
+  private logError(exception: unknown, request: Request, status: number) {
+    const message = `${request.method} ${request.url} - Status: ${status}`;
+
+    if (exception instanceof Error) {
+      this.logger.error(message, exception.stack);
+    } else {
+      this.logger.error(message, String(exception));
     }
   }
 }

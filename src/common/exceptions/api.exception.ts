@@ -1,100 +1,40 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import {
-  ApiErrorResponse,
-  ApiResponseCode,
-  ValidationErrorDetail,
-} from '../dto/api-response.dto';
 
 /**
- * Excepción personalizada que permite lanzar errores
- * con el formato estándar y detalles personalizados
+ * Custom exception class that extends HttpException to support additional error data
+ * Compatible with ApiErrorResponse interface
  */
 export class ApiException extends HttpException {
+  /**
+   * @param code - Business error code (e.g., 10 for NotFound, 15 for Duplicate, etc.)
+   * @param message - Human-readable error message
+   * @param errors - Additional error details (validation errors, context data, etc.)
+   * @param httpStatus - HTTP status code (default: 400 Bad Request)
+   */
   constructor(
-    code: ApiResponseCode,
+    public readonly code: number,
     message: string,
-    details?: ValidationErrorDetail[],
+    public readonly errors?: any[],
     httpStatus: HttpStatus = HttpStatus.BAD_REQUEST,
   ) {
-    const errorResponse = new ApiErrorResponse(code, message, details);
-    super(errorResponse, httpStatus);
-  }
-
-  /**
-   * Crea una excepción de validación personalizada
-   */
-  static validation(
-    message: string,
-    details: ValidationErrorDetail[],
-  ): ApiException {
-    return new ApiException(
-      ApiResponseCode.VALIDATION_ERROR,
-      message,
-      details,
-      HttpStatus.BAD_REQUEST,
+    super(
+      {
+        code,
+        message,
+        errors: errors || undefined,
+      },
+      httpStatus,
     );
   }
 
   /**
-   * Crea una excepción de recurso no encontrado
+   * Override getResponse to return structured error data
    */
-  static notFound(message: string = 'Resource not found'): ApiException {
-    return new ApiException(
-      ApiResponseCode.NOT_FOUND,
-      message,
-      undefined,
-      HttpStatus.NOT_FOUND,
-    );
-  }
-
-  /**
-   * Crea una excepción de no autorizado
-   */
-  static unauthorized(message: string = 'Unauthorized'): ApiException {
-    return new ApiException(
-      ApiResponseCode.UNAUTHORIZED,
-      message,
-      undefined,
-      HttpStatus.UNAUTHORIZED,
-    );
-  }
-
-  /**
-   * Crea una excepción de error interno
-   */
-  static internal(message: string = 'Internal server error'): ApiException {
-    return new ApiException(
-      ApiResponseCode.INTERNAL_ERROR,
-      message,
-      undefined,
-      HttpStatus.INTERNAL_SERVER_ERROR,
-    );
-  }
-
-  /**
-   * Crea una excepción de conflicto (recurso duplicado)
-   */
-  static conflict(message: string = 'Resource already exists'): ApiException {
-    return new ApiException(
-      ApiResponseCode.CONFLICT,
-      message,
-      undefined,
-      HttpStatus.CONFLICT,
-    );
-  }
-
-  /**
-   * Crea una excepción de solicitud incorrecta
-   */
-  static badRequest(
-    message: string = 'Bad request',
-    details?: ValidationErrorDetail[],
-  ): ApiException {
-    return new ApiException(
-      ApiResponseCode.BAD_REQUEST,
-      message,
-      details,
-      HttpStatus.BAD_REQUEST,
-    );
+  getResponse(): string | object {
+    return {
+      code: this.code,
+      message: this.message,
+      errors: this.errors,
+    };
   }
 }

@@ -1,16 +1,24 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
+
 import { RegisterDto } from './dto/register.dto';
 import { AuthCredential } from './entities/auth-credential.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserMetadata } from './entities/user-metadata.entity';
 import { OtpVerificationService } from './otp-verification.service';
+import {
+  EmailNotVerifiedException,
+  EmailAlreadyExistsException,
+  InvalidRefreshTokenException,
+  RefreshTokenExpiredException,
+  TokenReuseDetectedException,
+} from './exceptions/auth.exceptions';
 
 @Injectable()
 export class PassportAuthService {
@@ -65,7 +73,7 @@ export class PassportAuthService {
       await this.otpVerificationService.isUserEmailVerified(credential.user.id);
 
     if (!isEmailVerified) {
-      throw new NotFoundException('Email not verified');
+      throw new EmailNotVerifiedException();
     }
 
     return credential.user;
@@ -89,7 +97,7 @@ export class PassportAuthService {
       });
 
       if (existingUser) {
-        throw new NotFoundException(`Email already exists`);
+        throw new EmailAlreadyExistsException(dto.email);
       }
 
       // Verificar también en credenciales (por si acaso)
@@ -101,7 +109,7 @@ export class PassportAuthService {
       );
 
       if (existingCredential) {
-        throw new NotFoundException(`Email already exists`);
+        throw new EmailAlreadyExistsException(dto.email);
       }
 
       // 2. Crear usuario en tabla users
@@ -213,7 +221,7 @@ export class PassportAuthService {
     });
 
     if (!refreshToken) {
-      throw new NotFoundException('Invalid refresh token');
+      throw new InvalidRefreshTokenException();
     }
 
     // 3. DETECCIÓN DE REUTILIZACIÓN (token rotation attack)
@@ -224,12 +232,12 @@ export class PassportAuthService {
         refreshToken.tokenFamily,
         'Token reuse detected',
       );
-      throw new NotFoundException('Token reuse detected');
+      throw new TokenReuseDetectedException();
     }
 
     // 4. Verificar expiración
     if (new Date() > refreshToken.expiresAt) {
-      throw new NotFoundException('Refresh token expired');
+      throw new RefreshTokenExpiredException();
     }
 
     // 5. Generar nuevo access token
@@ -292,7 +300,7 @@ export class PassportAuthService {
     });
 
     if (!refreshToken) {
-      throw new NotFoundException('Invalid refresh token');
+      throw new InvalidRefreshTokenException();
     }
 
     await this.refreshTokenRepository.update(refreshToken.id, {

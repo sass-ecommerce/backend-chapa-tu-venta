@@ -1,11 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -15,10 +8,16 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 import { Store } from 'src/stores/entities/store.entity';
 import { User } from 'src/users/entities/user.entity';
+import {
+  ProductNotFoundException,
+  InvalidProductDataException,
+} from './exceptions/product.exceptions';
+import { StoreNotFoundException } from 'src/stores/exceptions/store.exceptions';
+import { UserNotFoundException } from 'src/users/exceptions/user.exceptions';
 
 @Injectable()
 export class ProductsService {
-  private readonly logger = new Logger('ProductsService');
+  protected readonly logger = new Logger(ProductsService.name);
 
   constructor(
     @InjectRepository(Product)
@@ -35,21 +34,18 @@ export class ProductsService {
       id: createProductDto.storeId,
     });
     if (!store)
-      throw new BadRequestException(
-        `Store with id ${createProductDto.storeId} not found`,
-      );
-
+      throw new StoreNotFoundException(createProductDto.storeId.toString());
     // Verificar permisos usando publicMetadata
     const userStoreSlug =
       user.publicMetadata?.storeSlug || user.publicMetadata?.store?.slug;
     if (store.slug !== userStoreSlug) {
-      throw new BadRequestException(
+      throw new InvalidProductDataException(
         `You do not have permission to create products for this store`,
       );
     }
 
     if (!store.status) {
-      throw new BadRequestException(
+      throw new InvalidProductDataException(
         `Cannot create products for an inactive store`,
       );
     }
@@ -57,8 +53,7 @@ export class ProductsService {
     const userEntity = await this.userRepository.findOneBy({
       id: user.userId,
     });
-    if (!userEntity)
-      throw new NotFoundException(`User with id ${user.userId} not found`);
+    if (!userEntity) throw new UserNotFoundException(user.userId);
 
     const productResult: { data: Product | null } = {
       data: null,
@@ -83,13 +78,8 @@ export class ProductsService {
 
       return { slug: productResult.data.slug };
     } catch (error) {
-      if (error.code === '23505')
-        throw new ConflictException('SKU must be unique');
-
-      this.logger.error(`Error upserting product: ${error.message}`);
-      throw new InternalServerErrorException(
-        'Unexpected error, check server logs',
-      );
+      this.logger.error('Error creating product:', error);
+      throw error;
     }
   }
 
@@ -100,7 +90,7 @@ export class ProductsService {
       where: { slug: storeSlug, status: true },
     });
     if (!store) {
-      throw new NotFoundException(`Store with slug ${storeSlug} not found`);
+      throw new StoreNotFoundException(storeSlug);
     }
 
     const products = await this.productRepository.find({
@@ -113,8 +103,7 @@ export class ProductsService {
 
   async findOne(slug: string) {
     const product = await this.productRepository.findOneBy({ slug });
-    if (!product)
-      throw new NotFoundException(`Product with slug ${slug} not found`);
+    if (!product) throw new ProductNotFoundException(slug);
 
     return this.toProductResponse(product);
   }
@@ -133,12 +122,4 @@ export class ProductsService {
       trending: product.trending,
     };
   }
-
-  // update(id: number, updateProductDto: UpdateProductDto) {
-  //   return `This action updates a #${id} product`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} product`;
-  // }
 }

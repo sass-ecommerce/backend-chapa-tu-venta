@@ -9,6 +9,7 @@ import {
   UsePipes,
   HttpCode,
   ParseUUIDPipe,
+  Logger,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -26,6 +27,8 @@ import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.i
   }),
 )
 export class ProductsController {
+  private readonly logger = new Logger(ProductsController.name);
+
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
@@ -43,7 +46,7 @@ export class ProductsController {
     @Query() paginationDto: PaginationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    console.log('[ProductsController][findAll][user]', user);
+    this.logger.debug(`[findAll] User: ${user?.userId || 'anonymous'}`);
     return this.productsService.findAll(paginationDto);
   }
 

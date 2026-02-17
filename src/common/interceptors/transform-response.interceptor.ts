@@ -6,15 +6,11 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ApiSuccessResponse } from '../dto/api-response.dto';
+import { ApiSuccessResponse } from '../interfaces/response.interface';
 
-/**
- * Interceptor que transforma todas las respuestas exitosas
- * al formato estándar: { code: 1, message: "Results", data: [...] }
- */
 @Injectable()
-export class TransformResponseInterceptor<T> implements NestInterceptor<
-  T,
+export class TransformResponseInterceptor implements NestInterceptor<
+  any,
   ApiSuccessResponse
 > {
   intercept(
@@ -22,20 +18,14 @@ export class TransformResponseInterceptor<T> implements NestInterceptor<
     next: CallHandler,
   ): Observable<ApiSuccessResponse> {
     return next.handle().pipe(
-      //se ejecuta después de que el controlador maneja la solicitud
-
       map((data) => {
         const {
           code = 1,
           message = 'Results',
           data: dataValue = null,
-        } = data as {
-          code?: number;
-          message?: string;
-          data?: Record<string, any> | Record<string, any>[] | null;
-        };
+        } = data as ApiSuccessResponse;
 
-        return new ApiSuccessResponse(code, dataValue, message);
+        return { code, message, data: dataValue };
       }),
     );
   }
