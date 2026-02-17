@@ -1,3 +1,6 @@
+import { User } from 'src/users/entities/user.entity';
+import { Request } from 'express';
+
 /**
  * Interface for authenticated user data
  * Used by JWT strategy and available in request.user
@@ -20,6 +23,24 @@ export interface AuthenticatedUser {
  */
 export interface JwtPayload {
   sub: string; // user ID
+  email: string;
+  role: string;
+  iat?: number; // issued at
+  exp?: number; // expiration
+}
+
+/**
+ * Interfaz para Request con usuario autenticado (usado por Passport)
+ */
+export interface AuthenticatedRequest extends Request {
+  user: User;
+}
+
+/**
+ * Interfaz para el payload del JWT decodificado
+ */
+export interface JwtPayload {
+  sub: string; // userId
   email: string;
   role: string;
   iat?: number; // issued at

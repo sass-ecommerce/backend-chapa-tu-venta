@@ -9,7 +9,6 @@ import { User } from 'src/users/entities/user.entity';
 import type { AuthenticatedUser } from 'src/auth/interfaces/authenticated-user.interface';
 import { UserMetadata } from 'src/auth/entities/user-metadata.entity';
 import { RoleUser } from 'src/users/interface/role-user.interface';
-import { DbExceptionHandlerService } from 'src/common/services/db-exception-handler.service';
 import {
   StoreNotFoundException,
   UserNotFoundException,
@@ -31,7 +30,6 @@ export class StoresService {
     @InjectRepository(UserMetadata)
     private readonly metadataRepository: Repository<UserMetadata>,
     private readonly dataSource: DataSource,
-    private readonly dbExceptionHandler: DbExceptionHandlerService,
   ) {}
 
   async upsert(createStoreDto: CreateStoreDto, user: AuthenticatedUser) {
@@ -105,7 +103,7 @@ export class StoresService {
         `[StoreService] [upsert] Error upserting store: ${error.message}`,
         error.stack,
       );
-      this.dbExceptionHandler.handle(error, 'upsert');
+      throw error;
     } finally {
       await queryRunner.release();
     }

@@ -138,10 +138,10 @@ export class PassportAuthService {
 
       // 4. ENVIAR OTP DE VERIFICACIÓN (fuera de la transacción)
       // let otpSessionId: string;
+      await queryRunner.commitTransaction();
+
       const otpVerification =
         await this.otpVerificationService.createEmailVerificationOtp(savedUser);
-
-      await queryRunner.commitTransaction();
 
       return {
         sessionId: otpVerification.id,

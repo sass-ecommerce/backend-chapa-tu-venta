@@ -1,10 +1,13 @@
-import { Injectable, LoggerService, Scope } from '@nestjs/common';
+import { Injectable, LoggerService } from '@nestjs/common';
 
 /**
  * Servicio de logging estructurado que implementa LoggerService de NestJS
  * Proporciona logs en formato JSON con contexto y timestamps
+ *
+ * Usa scope DEFAULT (singleton) para poder ser obtenido con .get() en main.ts
+ * y reutilizado eficientemente en toda la aplicación
  */
-@Injectable({ scope: Scope.TRANSIENT })
+@Injectable()
 export class AppLoggerService implements LoggerService {
   private context?: string;
 

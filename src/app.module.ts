@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,7 +14,6 @@ import {
 import { ProductsModule } from './products/products.module';
 import { StoresModule } from './stores/stores.module';
 import { PassportAuthModule } from './auth/passport-auth.module';
-import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -61,8 +60,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
   controllers: [],
   providers: [],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(RequestIdMiddleware).forRoutes('*');
-  }
+export class AppModule /*implements NestModule */ {
+  // configure(consumer: MiddlewareConsumer) {
+  //   consumer.apply(RequestIdMiddleware).forRoutes('*');
+  // }
 }

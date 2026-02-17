@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -20,7 +21,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { PassportAuthService } from './passport-auth.service';
 import { OtpVerificationService } from './otp-verification.service';
-import { User } from 'src/users/entities/user.entity';
+import type {
+  AuthenticatedRequest,
+  JwtPayload,
+} from './interfaces/authenticated-user.interface';
 
 @Controller('auth')
 @UseGuards(JwtAuthGuard) // Proteger todo el controller por defecto
@@ -95,16 +99,12 @@ export class PassportAuthController {
   @Public()
   @UseGuards(LocalAuthGuard)
   async login(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() loginDto: LoginDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    const result = await this.authService.login(
-      req.user as User,
-      ip,
-      userAgent,
-    );
+    const result = await this.authService.login(req.user, ip, userAgent);
 
     return {
       code: 200,
@@ -146,12 +146,12 @@ export class PassportAuthController {
    * Obtener perfil del usuario autenticado
    */
   @Get('me')
-  getProfile(@CurrentUser() user: any) {
+  getProfile(@CurrentUser() user: JwtPayload) {
     return {
       code: 200,
       message: 'User profile retrieved',
       data: {
-        userId: user.userId,
+        userId: user.sub,
         email: user.email,
         role: user.role,
       },
@@ -162,7 +162,7 @@ export class PassportAuthController {
    * Revocar todos los tokens del usuario
    */
   @Post('revoke-all')
-  async revokeAllTokens(@CurrentUser('userId') userId: string) {
+  async revokeAllTokens(@CurrentUser('sub') userId: string) {
     const result = await this.authService.revokeAllUserTokens(userId);
     return {
       code: 200,
