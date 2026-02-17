@@ -11,6 +11,7 @@ import { AuthCredential } from './entities/auth-credential.entity';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserMetadata } from './entities/user-metadata.entity';
+import { OtpVerification } from './entities/otp-verification.entity';
 import { OtpVerificationService } from './otp-verification.service';
 import {
   EmailNotVerifiedException,
@@ -18,6 +19,7 @@ import {
   InvalidRefreshTokenException,
   RefreshTokenExpiredException,
   TokenReuseDetectedException,
+  SamePasswordException,
 } from './exceptions/auth.exceptions';
 
 @Injectable()
@@ -34,6 +36,8 @@ export class PassportAuthService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(UserMetadata)
     private readonly metadataRepository: Repository<UserMetadata>,
+    @InjectRepository(OtpVerification)
+    private readonly otpVerificationRepository: Repository<OtpVerification>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly dataSource: DataSource,
@@ -344,6 +348,115 @@ export class PassportAuthService {
       {
         isRevoked: true,
         revocationReason: reason,
+        revokedAt: new Date(),
+      },
+    );
+  }
+
+  /**
+   * Busca usuario por email (helper para forgot-password)
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { email } });
+  }
+
+  /**
+   * Método unificado: Verifica OTP y resetea password en una sola operación
+   * Evita duplicación de validaciones entre OtpService y AuthService
+   * Registra intentos fallidos cuando la nueva contraseña es igual a la actual
+   */
+  async resetPasswordWithOtp(
+    sessionId: string,
+    otpCode: string,
+    newPassword: string,
+  ): Promise<void> {
+    // 1. Verificar OTP y obtener userId (ya registra intentos si código incorrecto)
+    const userId = await this.otpVerificationService.verifyPasswordResetOtp(
+      sessionId,
+      otpCode,
+    );
+
+    // 2. Obtener la credencial actual para comparar passwords
+    const credential = await this.credentialRepository.findOne({
+      where: { userId },
+    });
+
+    if (!credential) {
+      throw new Error('User credentials not found');
+    }
+
+    // 3. Validar que la nueva password sea diferente a la actual
+    const isSamePassword = await bcrypt.compare(
+      newPassword,
+      credential.passwordHash,
+    );
+
+    if (isSamePassword) {
+      // Registrar intento fallido por contraseña duplicada
+      const otpSession = await this.otpVerificationRepository.findOne({
+        where: {
+          id: sessionId,
+          purpose: 'password_reset',
+        },
+      });
+
+      if (otpSession && !otpSession.isUsed) {
+        await this.otpVerificationRepository.update(otpSession.id, {
+          attempts: otpSession.attempts + 1,
+        });
+      }
+
+      throw new SamePasswordException();
+    }
+
+    // 4. Hash de la nueva contraseña
+    const newPasswordHash = await bcrypt.hash(newPassword, this.bcryptRounds);
+
+    // 5. Actualizar password en auth_credentials
+    await this.credentialRepository.update(
+      { userId },
+      { passwordHash: newPasswordHash },
+    );
+
+    // 6. Marcar sesión OTP como usada (éxito)
+    await this.otpVerificationRepository.update(
+      { id: sessionId },
+      {
+        isUsed: true,
+        verifiedAt: new Date(),
+      },
+    );
+
+    // 7. Si el email NO estaba verificado, marcarlo como verificado
+    // (asumimos que si tiene acceso al email, puede resetear password)
+    const existingVerification = await this.otpVerificationRepository.findOne({
+      where: {
+        userId,
+        purpose: 'email_verification',
+        isVerified: true,
+      },
+    });
+
+    if (!existingVerification) {
+      // Crear registro de verificación automática
+      const autoVerification = this.otpVerificationRepository.create({
+        userId,
+        otpHash: 'auto-verified-via-password-reset',
+        expiresAt: new Date(),
+        isVerified: true,
+        isUsed: true,
+        purpose: 'email_verification',
+        verifiedAt: new Date(),
+      });
+      await this.otpVerificationRepository.save(autoVerification);
+    }
+
+    // 8. Revocar TODOS los refresh tokens del usuario
+    await this.refreshTokenRepository.update(
+      { userId, isRevoked: false },
+      {
+        isRevoked: true,
+        revocationReason: 'password_reset',
         revokedAt: new Date(),
       },
     );

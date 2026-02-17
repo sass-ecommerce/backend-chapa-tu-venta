@@ -17,10 +17,13 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { PassportAuthService } from './passport-auth.service';
 import { OtpVerificationService } from './otp-verification.service';
+import { EmailNotFoundException } from './exceptions/auth.exceptions';
 import type {
   AuthenticatedRequest,
   JwtPayload,
@@ -168,6 +171,57 @@ export class PassportAuthController {
       code: 200,
       message: 'All tokens revoked',
       data: result,
+    };
+  }
+
+  /**
+   * Solicitar reset de password (envía OTP por email)
+   * Retorna sessionId si el email existe, error 404 si no
+   */
+  @Post('forgot-password')
+  @Public()
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    // 1. Buscar usuario por email
+    const user = await this.authService.findUserByEmail(
+      forgotPasswordDto.email,
+    );
+
+    // 2. Si NO existe, lanzar excepción
+    if (!user) {
+      throw new EmailNotFoundException();
+    }
+
+    // 3. Crear OTP y enviar email
+    const otpSession = await this.otpService.createPasswordResetOtp(user);
+
+    // 4. Retornar sessionId
+    return {
+      code: 200,
+      message: 'Password reset code sent to your email.',
+      data: {
+        sessionId: otpSession.id,
+      },
+    };
+  }
+
+  /**
+   * Resetear password con código OTP
+   * Método unificado que verifica OTP y resetea password en una sola llamada
+   */
+  @Post('reset-password')
+  @Public()
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authService.resetPasswordWithOtp(
+      resetPasswordDto.sessionId,
+      resetPasswordDto.code,
+      resetPasswordDto.newPassword,
+    );
+
+    return {
+      code: 200,
+      message:
+        'Password reset successfully. Please login with your new password.',
+      data: {},
     };
   }
 }

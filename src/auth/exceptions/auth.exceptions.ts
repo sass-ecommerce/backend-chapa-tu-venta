@@ -101,3 +101,26 @@ export class TokenReuseDetectedException extends ApiException {
     super(34, 'Token reuse detected', undefined, 401);
   }
 }
+
+export class PasswordResetSessionInvalidException extends ApiException {
+  constructor() {
+    super(35, 'Invalid or expired password reset session', undefined, 400);
+  }
+}
+
+export class EmailNotFoundException extends ApiException {
+  constructor() {
+    super(36, 'Email not found', undefined, 404);
+  }
+}
+
+export class SamePasswordException extends ApiException {
+  constructor() {
+    super(
+      37,
+      'New password must be different from the current password',
+      undefined,
+      400,
+    );
+  }
+}

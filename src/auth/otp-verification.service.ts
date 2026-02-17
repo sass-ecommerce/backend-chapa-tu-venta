@@ -16,6 +16,7 @@ import {
   OtpInvalidCodeException,
   OtpEmailAlreadyVerifiedException,
   OtpSessionAlreadyUsedException,
+  PasswordResetSessionInvalidException,
 } from './exceptions/auth.exceptions';
 
 @Injectable()
@@ -198,5 +199,106 @@ export class OtpVerificationService {
     const min = Math.pow(10, length - 1);
     const otp = Math.floor(Math.random() * (max - min) + min);
     return otp.toString();
+  }
+
+  /**
+   * Crea OTP para reset de password
+   */
+  async createPasswordResetOtp(user: User): Promise<OtpVerification> {
+    try {
+      // 1. Generar código OTP numérico de 6 dígitos
+      const otpCodeLength = this.configService.get<number>('otp.codeLength', 6);
+      const otpCode = this.generateNumericOtp(otpCodeLength);
+
+      // 2. Hash del código (SHA256)
+      const otpHash = createHash('sha256').update(otpCode).digest('hex');
+
+      // 3. Calcular expiración (misma config que email verification)
+      const expirationMinutes = this.configService.get<number>(
+        'otp.expirationMinutes',
+        5,
+      );
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + expirationMinutes);
+
+      // 4. Crear registro en BD con purpose='password_reset'
+      const otpVerification = this.otpRepository.create({
+        userId: user.id,
+        otpHash,
+        expiresAt,
+        attempts: 0,
+        isVerified: false,
+        isUsed: false,
+        purpose: 'password_reset',
+      });
+
+      const savedOtp = await this.otpRepository.save(otpVerification);
+
+      // 5. Enviar email con código de reset de password
+      const displayName = user.firstName
+        ? `${user.firstName} ${user.lastName || ''}`.trim()
+        : user.email;
+
+      await this.emailService.sendPasswordResetEmail(
+        user.email,
+        otpCode,
+        displayName,
+      );
+
+      return savedOtp;
+    } catch (error) {
+      this.logger.error('Failed to create password reset OTP', error);
+      throw new OtpCreationFailedException();
+    }
+  }
+
+  /**
+   * Verifica OTP de reset de password y devuelve userId
+   */
+  async verifyPasswordResetOtp(
+    sessionId: string,
+    otpCode: string,
+  ): Promise<string> {
+    // 1. Buscar sesión con purpose='password_reset'
+    const otpSession = await this.otpRepository.findOne({
+      where: {
+        id: sessionId,
+        purpose: 'password_reset',
+      },
+    });
+
+    if (!otpSession) {
+      throw new PasswordResetSessionInvalidException();
+    }
+
+    // 2. Verificar si ya fue usado
+    if (otpSession.isUsed) {
+      throw new PasswordResetSessionInvalidException();
+    }
+
+    // 3. Verificar expiración
+    if (new Date() > otpSession.expiresAt) {
+      throw new PasswordResetSessionInvalidException();
+    }
+
+    // 4. Verificar límite de intentos
+    const maxAttempts = this.configService.get<number>('otp.maxAttempts', 3);
+    if (otpSession.attempts >= maxAttempts) {
+      throw new PasswordResetSessionInvalidException();
+    }
+
+    // 5. Validar código
+    const otpHash = createHash('sha256').update(otpCode).digest('hex');
+
+    if (otpHash !== otpSession.otpHash) {
+      // Incrementar contador de intentos
+      await this.otpRepository.update(otpSession.id, {
+        attempts: otpSession.attempts + 1,
+      });
+
+      throw new PasswordResetSessionInvalidException();
+    }
+
+    return otpSession.userId;
   }
 }

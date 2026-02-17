@@ -30,6 +30,9 @@ export class OtpVerification {
   @Column('boolean', { name: 'is_used', default: false })
   isUsed: boolean;
 
+  @Column('varchar', { name: 'purpose', default: 'email_verification' })
+  purpose: 'email_verification' | 'password_reset';
+
   @Column('varchar', { name: 'ip_address', nullable: true })
   ipAddress: string;
 

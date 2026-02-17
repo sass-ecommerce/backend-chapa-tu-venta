@@ -41,7 +41,7 @@ import { PassportAuthModule } from './auth/passport-auth.module';
         autoLoadEntities: true,
         logger: 'advanced-console',
         synchronize: false,
-        logging: ['error', 'warn', 'query'],
+        logging: ['error', 'warn' /*'query'*/],
       }),
     }),
     MongooseModule.forRootAsync({
