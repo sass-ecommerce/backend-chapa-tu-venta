@@ -202,10 +202,11 @@ export class PassportAuthService {
     );
 
     return {
-      access_token: accessToken,
-      refresh_token: refreshTokenValue,
-      expires_in: 900,
-      token_type: 'Bearer',
+      accessToken: accessToken,
+      refreshToken: refreshTokenValue,
+      expiresIn: 900,
+      tokenType: 'Bearer',
+      userSlug: user.slug,
     };
   }
 
@@ -284,10 +285,11 @@ export class PassportAuthService {
     });
 
     return {
-      access_token: accessToken,
-      refresh_token: newRefreshTokenValue,
-      expires_in: 900,
-      token_type: 'Bearer',
+      accessToken: accessToken,
+      refreshToken: newRefreshTokenValue,
+      expiresIn: 900,
+      tokenType: 'Bearer',
+      userSlug: refreshToken.user.slug,
     };
   }
 

@@ -26,3 +26,15 @@ export class DuplicateUserException extends ApiException {
     );
   }
 }
+
+export class UserNotFoundBySlugException extends ApiException {
+  constructor(slug: string) {
+    super(10, `User with slug '${slug}' not found`, undefined, 404);
+  }
+}
+
+export class UnauthorizedUserUpdateException extends ApiException {
+  constructor() {
+    super(20, 'You can only update your own profile', undefined, 403);
+  }
+}
