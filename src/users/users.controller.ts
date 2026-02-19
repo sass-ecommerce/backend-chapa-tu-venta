@@ -91,4 +91,30 @@ export class UsersController {
       },
     };
   }
+
+  /**
+   * GET /api/users/:slug/metadata
+   * Retorna el public_metadata del usuario por slug
+   * Requiere autenticación JWT
+   */
+  @Get(':slug/metadata')
+  async getPublicMetadata(
+    @Param('slug', ParseUUIDPipe) slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    this.logger.debug(
+      `[GET /users/${slug}/metadata] Requested by user: ${user.userId}`,
+    );
+
+    const publicMetadata =
+      await this.usersService.findPublicMetadataBySlug(slug);
+
+    return {
+      code: 200,
+      message: 'Public metadata retrieved successfully',
+      data: {
+        publicMetadata,
+      },
+    };
+  }
 }

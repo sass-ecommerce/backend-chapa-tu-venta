@@ -110,4 +110,34 @@ export class UsersService {
 
     return updatedUser;
   }
+
+  /**
+   * Obtener public_metadata del usuario por slug
+   * @param slug - Slug del usuario (UUID público)
+   * @returns public_metadata del usuario (objeto vacío si no existe metadata)
+   * @throws UserNotFoundBySlugException si el usuario no existe
+   */
+  async findPublicMetadataBySlug(slug: string): Promise<Record<string, any>> {
+    this.logger.debug(`Finding public metadata for user with slug: ${slug}`);
+
+    // Buscar usuario con su metadata
+    const user = await this.usersRepository.findOne({
+      where: { slug },
+      relations: ['metadata'],
+    });
+    console.log('User with metadata:', user);
+    if (!user) {
+      this.logger.warn(`User not found with slug: ${slug}`);
+      throw new UserNotFoundBySlugException(slug);
+    }
+
+    // Si no tiene metadata, retornar objeto vacío
+    if (!user.metadata) {
+      this.logger.debug(`User ${slug} has no metadata, returning empty object`);
+      return {};
+    }
+
+    this.logger.debug(`Public metadata found for user: ${user.email}`);
+    return user.metadata.publicMetadata || {};
+  }
 }
