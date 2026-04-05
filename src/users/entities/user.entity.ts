@@ -1,80 +1,30 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { Store } from '../../stores/entities/store.entity';
-import { UserMetadata } from '../../auth/entities/user-metadata.entity';
-import { AuthCredential } from 'src/auth/entities/auth-credential.entity';
-import { RefreshToken } from 'src/auth/entities/refresh-token.entity';
-@Entity({ name: 'users', schema: 'b2b' })
+import { Column, Entity, PrimaryColumn } from 'typeorm';
+
+@Entity({ name: 'users', schema: 'public' })
 export class User {
-  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  // The primary key is the Cognito sub (UUID provided by AWS, not auto-generated)
+  @PrimaryColumn('uuid')
   id: string;
 
-  @Column('uuid', { unique: true, default: () => 'gen_random_uuid()' })
-  slug: string;
-
-  @Column('varchar', { name: 'first_name', nullable: true })
-  firstName: string;
-
-  @Column('varchar', { name: 'last_name', nullable: true })
-  lastName: string;
-
-  @Column('varchar', { unique: true, nullable: false })
+  // Uniqueness enforced by partial index in migration: WHERE deleted_at IS NULL
+  @Column('varchar', { length: 255, nullable: false })
   email: string;
 
-  @Column('text', { name: 'image_url', nullable: true })
-  imageUrl: string;
+  @Column('varchar', { name: 'first_name', length: 100, nullable: true })
+  firstName: string | null;
 
-  @Column('boolean', { name: 'is_active', nullable: true, default: true })
+  @Column('varchar', { name: 'last_name', length: 100, nullable: true })
+  lastName: string | null;
+
+  @Column('boolean', { name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column('varchar', { nullable: true })
-  role: string;
-
-  @Column('varchar', { name: 'auth_method', nullable: true })
-  authMethod: string;
-
-  @Column('varchar', {
-    name: 'auth_provider',
-    nullable: true,
-    default: 'local',
-  })
-  authProvider: string;
-
-  @Column('bigint', { name: 'store_id', nullable: true })
-  storeId: number;
-
-  @Column('timestamptz', {
-    name: 'created_at',
-    nullable: true,
-    default: () => 'now()',
-  })
+  @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
-  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  @Column('timestamptz', { name: 'updated_at', default: () => 'NOW()' })
   updatedAt: Date;
 
-  // Relations
-  @ManyToOne(() => Store, (store) => store.users, { nullable: true })
-  @JoinColumn({ name: 'store_id' })
-  store: Store;
-
-  @OneToOne(() => UserMetadata, (metadata: any) => metadata.user, {
-    nullable: true,
-  })
-  metadata: any;
-
-  @OneToOne(() => AuthCredential, (credential: any) => credential.user, {
-    nullable: true,
-  })
-  credential: any;
-
-  @OneToMany(() => RefreshToken, (token: any) => token.user)
-  refreshTokens: any[];
+  @Column('timestamptz', { name: 'deleted_at', nullable: true })
+  deletedAt: Date | null;
 }

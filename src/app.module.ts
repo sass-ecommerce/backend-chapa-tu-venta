@@ -2,18 +2,17 @@ import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MongooseModule } from '@nestjs/mongoose';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import {
-  authConfig,
   awsConfig,
+  cognitoConfig,
   databaseConfig,
-  otpConfig,
 } from './config/configuration';
 import { ProductsModule } from './products/products.module';
-import { StoresModule } from './stores/stores.module';
-import { PassportAuthModule } from './auth/passport-auth.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { CategoriesModule } from './categories/categories.module';
+import { CognitoAuthModule } from './cognito-auth/cognito-auth.module';
 
 @Module({
   imports: [
@@ -25,36 +24,25 @@ import { PassportAuthModule } from './auth/passport-auth.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig, authConfig, awsConfig, otpConfig],
+      load: [databaseConfig, awsConfig, cognitoConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('database.postgres.host'),
-        port: configService.get<number>('database.postgres.port'),
-        username: configService.get<string>('database.postgres.username'),
-        password: configService.get<string>('database.postgres.password'),
-        database: configService.get<string>('database.postgres.database'),
-        schema: configService.get<string>('database.postgres.schema'),
+        url: configService.get<string>('database.postgres.url'),
         autoLoadEntities: true,
         logger: 'advanced-console',
-        synchronize: false,
-        logging: ['error', 'warn' /*'query'*/],
+        synchronize: true,
+        logging: ['error', 'warn', 'query'],
       }),
     }),
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('database.mongodb.uri'),
-      }),
-    }),
-    PassportAuthModule,
-    StoresModule,
+    CognitoAuthModule,
+    TenantsModule,
     UsersModule,
     CommonModule,
+    CategoriesModule,
     ProductsModule,
   ],
   controllers: [],

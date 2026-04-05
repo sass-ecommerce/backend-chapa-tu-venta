@@ -1,54 +1,35 @@
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
+  IsUUID,
 } from 'class-validator';
 
 export class CreateProductDto {
-  @IsNumber()
-  @IsInt()
-  storeId: number;
+  @IsUUID()
+  tenantId: string;
+
+  @IsUUID()
+  categoryId: string;
 
   @IsString()
-  sku: string;
-
   @IsNotEmpty()
-  @IsString()
   name: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   description?: string;
 
-  @IsOptional()
   @IsNumber()
-  price?: number;
+  @IsPositive()
+  @Type(() => Number)
+  basePrice: number;
 
-  @IsOptional()
-  @IsNumber()
-  @IsInt()
-  stockQuantity?: number;
-
-  @IsOptional()
-  @IsNumber()
-  priceList?: number;
-
-  @IsOptional()
-  @IsNumber()
-  priceBase?: number;
-
-  @IsOptional()
-  @IsString()
-  imageUri?: string;
-
-  @IsOptional()
   @IsBoolean()
-  trending?: boolean;
-
   @IsOptional()
-  @IsNumber()
-  rating?: number;
+  isActive?: boolean;
 }

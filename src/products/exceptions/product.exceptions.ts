@@ -1,34 +1,41 @@
+import { HttpStatus } from '@nestjs/common';
 import { ApiException } from '../../common/exceptions/api.exception';
 
-/**
- * Excepciones personalizadas para el módulo de productos
- */
-
 export class ProductNotFoundException extends ApiException {
-  constructor(slug: string) {
-    super(10, `Product with slug '${slug}' not found`, undefined, 404);
+  constructor(id: string) {
+    super(10, `Product '${id}' not found`, undefined, HttpStatus.NOT_FOUND);
   }
 }
 
-export class InvalidProductDataException extends ApiException {
-  constructor(message: string) {
-    super(14, message, undefined, 400);
+export class ProductVariantNotFoundException extends ApiException {
+  constructor(id: string) {
+    super(
+      11,
+      `Product variant '${id}' not found`,
+      undefined,
+      HttpStatus.NOT_FOUND,
+    );
   }
 }
 
-export class DuplicateProductSKUException extends ApiException {
+export class ProductSkuAlreadyExistsException extends ApiException {
   constructor(sku: string) {
     super(
-      15,
-      `Product with SKU '${sku}' already exists`,
-      [
-        {
-          code: 'duplicate_sku',
-          path: ['sku'],
-          message: `SKU '${sku}' is already in use`,
-        },
-      ],
-      409,
+      12,
+      `SKU '${sku}' already exists in this tenant`,
+      undefined,
+      HttpStatus.CONFLICT,
+    );
+  }
+}
+
+export class ProductCategoryMismatchException extends ApiException {
+  constructor(categoryId: string) {
+    super(
+      13,
+      `Category '${categoryId}' not found in this tenant`,
+      undefined,
+      HttpStatus.UNPROCESSABLE_ENTITY,
     );
   }
 }

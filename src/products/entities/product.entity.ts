@@ -3,62 +3,53 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Store } from '../../stores/entities/store.entity';
+import { Category } from '../../categories/entities/category.entity';
+import { ProductVariant } from './product-variant.entity';
 
-@Entity({ name: 'products', schema: 'b2b' })
+@Entity({ name: 'products', schema: 'public' })
 export class Product {
-  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid', {
-    nullable: true,
-    default: () => 'gen_random_uuid()',
-  })
-  slug: string;
+  @Column('uuid', { name: 'tenant_id', nullable: false })
+  tenantId: string;
 
-  @Column('bigint', { name: 'store_id', nullable: true })
-  storeId: number;
+  @Column('uuid', { name: 'category_id', nullable: false })
+  categoryId: string;
 
-  @Column('varchar', { nullable: true, unique: true })
-  sku: string;
-
-  @Column('varchar', { nullable: true })
+  @Column('varchar', { length: 255, nullable: false })
   name: string;
 
   @Column('text', { nullable: true })
-  description: string;
+  description: string | null;
 
-  @Column('double precision', { nullable: true })
-  price: number;
+  @Column('decimal', {
+    name: 'base_price',
+    precision: 10,
+    scale: 2,
+    nullable: false,
+  })
+  basePrice: number;
 
-  @Column('bigint', { name: 'stock_quantity', nullable: true })
-  stockQuantity: number;
-
-  @Column('boolean', { name: 'is_active', nullable: true, default: true })
+  @Column('boolean', { name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column('double precision', { name: 'price_list', nullable: true })
-  priceList: number;
-
-  @Column('text', { name: 'image_uri', nullable: true })
-  imageUri: string;
-
-  @Column('boolean', { nullable: true, default: false })
-  trending: boolean;
-
-  @Column('boolean', { nullable: true, default: true })
-  status: boolean;
-
-  @Column('timestamptz', { name: 'created_at', default: () => 'now()' })
+  @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
   @Column('timestamptz', { name: 'updated_at', nullable: true })
-  updatedAt: Date;
+  updatedAt: Date | null;
 
-  // Relations
-  @ManyToOne(() => Store, (store) => store.products, { nullable: true })
-  @JoinColumn({ name: 'store_id' })
-  store: Store;
+  @Column('timestamptz', { name: 'deleted_at', nullable: true })
+  deletedAt: Date | null;
+
+  @ManyToOne(() => Category)
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
+
+  @OneToMany(() => ProductVariant, (variant) => variant.product)
+  variants: ProductVariant[];
 }

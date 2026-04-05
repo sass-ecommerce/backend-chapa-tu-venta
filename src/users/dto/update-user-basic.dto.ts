@@ -1,9 +1,5 @@
-import { IsOptional, IsString, IsUrl, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
-/**
- * DTO para actualización de información básica del usuario
- * Solo permite actualizar campos de perfil público: firstName, lastName, imageUrl
- */
 export class UpdateUserBasicDto {
   @IsOptional()
   @IsString()
@@ -14,8 +10,4 @@ export class UpdateUserBasicDto {
   @IsString()
   @MinLength(2, { message: 'Last name must be at least 2 characters long' })
   lastName?: string;
-
-  @IsOptional()
-  @IsUrl({}, { message: 'Image URL must be a valid URL' })
-  imageUrl?: string;
 }
