@@ -45,6 +45,7 @@ export class AuthService {
             { Name: 'email', Value: dto.email },
             { Name: 'given_name', Value: dto.firstName },
             { Name: 'family_name', Value: dto.lastName },
+            { Name: 'name', Value: `${dto.firstName} ${dto.lastName}` },
           ],
         }),
       );
