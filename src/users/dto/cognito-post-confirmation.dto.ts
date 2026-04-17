@@ -1,10 +1,5 @@
 import { Type } from 'class-transformer';
-import {
-  IsIn,
-  IsObject,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { IsIn, IsObject, IsString, ValidateNested } from 'class-validator';
 
 // Cognito sends userAttributes as a flat Record<string, string>.
 // Keys like "cognito:email_alias" cannot be modeled as class properties,

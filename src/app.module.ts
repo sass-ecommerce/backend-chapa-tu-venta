@@ -13,6 +13,7 @@ import { ProductsModule } from './products/products.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CognitoAuthModule } from './cognito-auth/cognito-auth.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CognitoAuthModule } from './cognito-auth/cognito-auth.module';
       }),
     }),
     CognitoAuthModule,
+    AuthModule,
     TenantsModule,
     UsersModule,
     CommonModule,
