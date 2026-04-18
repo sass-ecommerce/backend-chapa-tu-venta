@@ -19,7 +19,6 @@ export class CognitoJwtStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      audience: clientId,
       issuer,
       algorithms: ['RS256'],
       secretOrKeyProvider: passportJwtSecret({
@@ -29,9 +28,17 @@ export class CognitoJwtStrategy extends PassportStrategy(
         jwksUri: `${issuer}/.well-known/jwks.json`,
       }),
     });
+
+    this.clientId = clientId!;
   }
 
+  private readonly clientId: string;
+
   validate(payload: any): CognitoUser {
+    if (payload.token_use !== 'access' || payload.client_id !== this.clientId) {
+      throw new Error('Invalid token');
+    }
+
     return {
       sub: payload.sub,
       username: payload.username,

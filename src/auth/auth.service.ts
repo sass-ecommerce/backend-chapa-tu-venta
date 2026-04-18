@@ -8,6 +8,7 @@ import {
   InitiateAuthCommand,
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
+  GlobalSignOutCommand,
   UsernameExistsException,
   CodeMismatchException,
   ExpiredCodeException,
@@ -29,6 +30,7 @@ import {
   ResendCodeLimitExceededException,
   InvalidCredentialsException,
   InvalidRefreshTokenException,
+  InvalidAccessTokenException,
   InvalidResetCodeException,
   UserNotConfirmedException,
   CognitoException,
@@ -187,6 +189,23 @@ export class AuthService {
         error instanceof ExpiredCodeException
       ) {
         throw new InvalidResetCodeException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async logout(accessToken: string) {
+    try {
+      await this.cognitoClient.send(
+        new GlobalSignOutCommand({
+          AccessToken: accessToken,
+        }),
+      );
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      if (error instanceof NotAuthorizedException) {
+        throw new InvalidAccessTokenException();
       }
       throw new CognitoException(error.message);
     }

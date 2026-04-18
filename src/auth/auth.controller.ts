@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -16,9 +18,9 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../cognito-auth/decorators/public.decorator';
+import { CognitoJwtGuard } from '../cognito-auth/guards/cognito-jwt.guard';
 
 @Controller('auth')
-@Public()
 @UsePipes(
   new ValidationPipe({
     whitelist: true,
@@ -30,6 +32,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() dto: RegisterDto) {
     const data = await this.authService.register(dto);
@@ -41,6 +44,7 @@ export class AuthController {
   }
 
   @Post('confirm-registration')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async confirmRegistration(@Body() dto: ConfirmRegistrationDto) {
     const data = await this.authService.confirmRegistration(dto);
@@ -52,6 +56,7 @@ export class AuthController {
   }
 
   @Post('resend-code')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async resendCode(@Body() dto: ResendCodeDto) {
     const data = await this.authService.resendCode(dto);
@@ -63,6 +68,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
     const data = await this.authService.login(dto);
@@ -74,6 +80,7 @@ export class AuthController {
   }
 
   @Post('refresh-token')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() dto: RefreshTokenDto) {
     const data = await this.authService.refreshToken(dto);
@@ -84,7 +91,21 @@ export class AuthController {
     };
   }
 
+  @Post('logout')
+  @UseGuards(CognitoJwtGuard)
+  @HttpCode(HttpStatus.OK)
+  async logout(@Headers('authorization') authorization: string) {
+    const token = authorization.replace(/^Bearer\s+/i, '');
+    const data = await this.authService.logout(token);
+    return {
+      code: 200,
+      message: data.message,
+      data: null,
+    };
+  }
+
   @Post('forgot-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     const data = await this.authService.forgotPassword(dto);
@@ -96,6 +117,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() dto: ResetPasswordDto) {
     const data = await this.authService.resetPassword(dto);
