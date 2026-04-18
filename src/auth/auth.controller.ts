@@ -11,6 +11,10 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { ConfirmRegistrationDto } from './dto/confirm-registration.dto';
 import { ResendCodeDto } from './dto/resend-code.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from '../cognito-auth/decorators/public.decorator';
 
 @Controller('auth')
@@ -51,6 +55,50 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendCode(@Body() dto: ResendCodeDto) {
     const data = await this.authService.resendCode(dto);
+    return {
+      code: 200,
+      message: data.message,
+      data: null,
+    };
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: LoginDto) {
+    const data = await this.authService.login(dto);
+    return {
+      code: 200,
+      message: 'Login successful',
+      data,
+    };
+  }
+
+  @Post('refresh-token')
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    const data = await this.authService.refreshToken(dto);
+    return {
+      code: 200,
+      message: 'Token refreshed successfully',
+      data,
+    };
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    const data = await this.authService.forgotPassword(dto);
+    return {
+      code: 200,
+      message: data.message,
+      data: null,
+    };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    const data = await this.authService.resetPassword(dto);
     return {
       code: 200,
       message: data.message,

@@ -54,7 +54,7 @@ export class UsersService {
     // Cognito sub becomes the user's primary key
     const id = attrs['sub'];
     const email = attrs['email'];
-    const firstName = attrs['given_name'] ?? attrs['name'] ?? null;
+    const firstName = attrs['given_name'] ?? null;
     const lastName = attrs['family_name'] ?? null;
 
     this.logger.log(

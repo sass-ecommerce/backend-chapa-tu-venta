@@ -52,6 +52,40 @@ export class ResendCodeLimitExceededException extends ApiException {
   }
 }
 
+export class InvalidCredentialsException extends ApiException {
+  constructor() {
+    super(40, 'Invalid email or password', undefined, HttpStatus.UNAUTHORIZED);
+  }
+}
+
+export class InvalidRefreshTokenException extends ApiException {
+  constructor() {
+    super(
+      41,
+      'Invalid or expired refresh token',
+      undefined,
+      HttpStatus.UNAUTHORIZED,
+    );
+  }
+}
+
+export class InvalidResetCodeException extends ApiException {
+  constructor() {
+    super(
+      50,
+      'Invalid or expired password reset code',
+      [
+        {
+          code: 'invalid_reset_code',
+          path: ['code'],
+          message: 'The reset code is invalid or has expired',
+        },
+      ],
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
 export class CognitoException extends ApiException {
   constructor(message: string) {
     super(99, message, undefined, HttpStatus.INTERNAL_SERVER_ERROR);
