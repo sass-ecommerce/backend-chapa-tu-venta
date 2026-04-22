@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   UseGuards,
   UsePipes,
@@ -24,6 +25,17 @@ import type { CognitoUser } from '../cognito-auth/interfaces/cognito-user.interf
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}
 
+  @Get('onboarding')
+  async getOnboarding(@CurrentUser() user: CognitoUser) {
+    const status = await this.tenantsService.getOnboardingStatus(user.sub);
+
+    return {
+      code: 200,
+      message: 'Onboarding status retrieved successfully',
+      data: status,
+    };
+  }
+
   @Post()
   async create(@Body() dto: CreateTenantDto, @CurrentUser() user: CognitoUser) {
     const tenant = await this.tenantsService.create(dto, user.sub);
@@ -32,10 +44,8 @@ export class TenantsController {
       code: 201,
       message: 'Tenant created successfully',
       data: {
-        id: tenant.id,
+        tenantId: tenant.id,
         name: tenant.name,
-        domain: tenant.domain,
-        createdAt: tenant.createdAt,
       },
     };
   }

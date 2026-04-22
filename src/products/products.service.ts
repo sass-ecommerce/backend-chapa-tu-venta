@@ -65,7 +65,7 @@ export class ProductsService {
     if (!category) throw new ProductCategoryMismatchException(categoryId);
   }
 
-  async create(dto: CreateProductDto): Promise<Product> {
+  async create(dto: CreateProductDto): Promise<{ id: string }> {
     await this.validateCategory(dto.categoryId, dto.tenantId);
 
     const product = this.productRepository.create({
@@ -79,15 +79,12 @@ export class ProductsService {
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
 
-    return this.productRepository.findOne({
-      where: { id: saved.id },
-      relations: ['category'],
-    }) as Promise<Product>;
+    return { id: saved.id };
   }
 
   async findAll(
     query: QueryProductDto,
-  ): Promise<{ data: Product[]; meta: object }> {
+  ): Promise<{ data: object[]; meta: object }> {
     const {
       tenantId,
       categoryId,
@@ -97,33 +94,78 @@ export class ProductsService {
       limit = 10,
     } = query;
 
-    const qb = this.productRepository
-      .createQueryBuilder('product')
-      .leftJoinAndSelect(
-        'product.variants',
-        'variants',
-        'variants.deleted_at IS NULL',
-      )
-      .leftJoinAndSelect('product.category', 'category')
-      .where('product.deleted_at IS NULL')
-      .orderBy('product.created_at', 'DESC')
-      .take(limit)
-      .skip((page - 1) * limit);
+    const conditions: string[] = ['p.deleted_at IS NULL'];
+    const params: unknown[] = [];
 
     if (tenantId) {
-      qb.andWhere('product.tenant_id = :tenantId', { tenantId });
+      params.push(tenantId);
+      conditions.push(`p.tenant_id = $${params.length}`);
     }
     if (categoryId) {
-      qb.andWhere('product.category_id = :categoryId', { categoryId });
+      params.push(categoryId);
+      conditions.push(`p.category_id = $${params.length}`);
     }
     if (name) {
-      qb.andWhere('product.name ILIKE :name', { name: `%${name}%` });
+      params.push(`%${name}%`);
+      conditions.push(`p.name ILIKE $${params.length}`);
     }
     if (isActive !== undefined) {
-      qb.andWhere('product.is_active = :isActive', { isActive });
+      params.push(isActive);
+      conditions.push(`p.is_active = $${params.length}`);
     }
 
-    const [data, total] = await qb.getManyAndCount();
+    const where = conditions.join(' AND ');
+
+    const [{ count }, rows] = await Promise.all([
+      this.productRepository
+        .query(
+          `SELECT COUNT(*) AS count FROM products p WHERE ${where}`,
+          params,
+        )
+        .then((r) => r[0]),
+      this.productRepository.query(
+        `
+        SELECT
+          p.id,
+          p.tenant_id    AS "tenantId",
+          p.category_id  AS "categoryId",
+          p.name,
+          p.description,
+          p.base_price   AS "basePrice",
+          p.is_active    AS "isActive",
+          c.id           AS "cat_id",
+          c.parent_id    AS "cat_parentId",
+          c.name         AS "cat_name",
+          c.slug         AS "cat_slug"
+        FROM products p
+        LEFT JOIN categories c ON c.id = p.category_id AND c.deleted_at IS NULL
+        WHERE ${where}
+        ORDER BY p.created_at DESC
+        LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `,
+        [...params, limit, (page - 1) * limit],
+      ),
+    ]);
+
+    const data = rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenantId,
+      categoryId: r.categoryId,
+      name: r.name,
+      description: r.description,
+      basePrice: r.basePrice,
+      isActive: r.isActive,
+      category: r.cat_id
+        ? {
+            id: r.cat_id,
+            parentId: r.cat_parentId,
+            name: r.cat_name,
+            slug: r.cat_slug,
+          }
+        : null,
+    }));
+
+    const total = parseInt(count as string, 10);
 
     return {
       data,
@@ -131,7 +173,7 @@ export class ProductsService {
     };
   }
 
-  async update(id: string, dto: UpdateProductDto): Promise<Product> {
+  async update(id: string, dto: UpdateProductDto): Promise<{ id: string }> {
     const product = await this.productRepository.findOne({
       where: { id, deletedAt: IsNull() },
     });
@@ -143,10 +185,10 @@ export class ProductsService {
 
     Object.assign(product, dto);
     product.updatedAt = new Date();
-    const updated = await this.productRepository.save(product);
+    await this.productRepository.save(product);
 
     this.logger.log(`Product updated: ${id}`);
-    return updated;
+    return { id };
   }
 
   async createVariants(
@@ -206,7 +248,7 @@ export class ProductsService {
   async updateVariant(
     variantId: string,
     dto: UpdateProductVariantDto,
-  ): Promise<ProductVariant> {
+  ): Promise<{ id: string }> {
     const variant = await this.variantRepository.findOne({
       where: { id: variantId, deletedAt: IsNull() },
       relations: ['product'],
@@ -224,9 +266,9 @@ export class ProductsService {
 
     Object.assign(variant, dto);
     variant.updatedAt = new Date();
-    const updated = await this.variantRepository.save(variant);
+    await this.variantRepository.save(variant);
 
     this.logger.log(`Variant updated: ${variantId}`);
-    return updated;
+    return { id: variantId };
   }
 }

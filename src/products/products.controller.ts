@@ -31,7 +31,6 @@ import { QueryProductDto } from './dto/query-product.dto';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  // 1. Crear producto base
   @Post()
   async create(@Body() dto: CreateProductDto) {
     const product = await this.productsService.create(dto);
@@ -42,7 +41,6 @@ export class ProductsController {
     };
   }
 
-  // 3. Listar productos base
   @Get()
   async findAll(@Query() query: QueryProductDto) {
     const result = await this.productsService.findAll(query);
@@ -53,7 +51,6 @@ export class ProductsController {
     };
   }
 
-  // 2. Crear variantes de un producto (acepta array)
   @Post(':id/variants')
   async createVariants(
     @Param('id', ParseUUIDPipe) id: string,
@@ -67,7 +64,6 @@ export class ProductsController {
     };
   }
 
-  // 4. Listar variantes de un producto base
   @Get(':id/variants')
   async findVariants(@Param('id', ParseUUIDPipe) id: string) {
     const variants = await this.productsService.findVariantsByProduct(id);

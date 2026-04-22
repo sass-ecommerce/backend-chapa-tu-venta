@@ -36,11 +36,11 @@ export class CategoriesController {
 
   @Get()
   async findAll(@Query('tenantId', ParseUUIDPipe) tenantId: string) {
-    const categories = await this.categoriesService.findAllByTenant(tenantId);
+    const tree = await this.categoriesService.findAllByTenant(tenantId);
     return {
       code: 200,
       message: 'Categories retrieved successfully',
-      data: categories,
+      data: tree,
     };
   }
 

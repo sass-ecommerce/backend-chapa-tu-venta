@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { CategoryTreeDto } from './dto/category-tree.dto';
 import {
   CategoryNotFoundException,
   CategoryParentNotFoundException,
@@ -47,20 +48,58 @@ export class CategoriesService {
     return saved;
   }
 
-  async findAllByTenant(tenantId: string): Promise<Category[]> {
-    return this.categoryRepository.find({
+  async findAllByTenant(tenantId: string): Promise<CategoryTreeDto[]> {
+    const flat = await this.categoryRepository.find({
+      select: ['id', 'parentId', 'name', 'slug'],
       where: { tenantId, deletedAt: IsNull() },
       order: { createdAt: 'ASC' },
     });
+    return this.buildTree(flat);
   }
 
-  async findOne(id: string): Promise<Category> {
-    const category = await this.categoryRepository.findOne({
+  async findOne(id: string): Promise<CategoryTreeDto> {
+    const found = await this.categoryRepository.findOne({
+      select: { id: true, tenantId: true },
       where: { id, deletedAt: IsNull() },
-      relations: ['parent', 'children'],
     });
-    if (!category) throw new CategoryNotFoundException(id);
-    return category;
+    if (!found) throw new CategoryNotFoundException(id);
+
+    const flat = await this.categoryRepository.find({
+      select: ['id', 'parentId', 'name', 'slug'],
+      where: { tenantId: found.tenantId, deletedAt: IsNull() },
+      order: { createdAt: 'ASC' },
+    });
+
+    const map = this.buildMap(flat);
+    return map.get(id)!;
+  }
+
+  private buildMap(flat: Category[]): Map<string, CategoryTreeDto> {
+    const map = new Map<string, CategoryTreeDto>();
+    flat.forEach((c) => {
+      map.set(c.id, {
+        id: c.id,
+        parentId: c.parentId,
+        name: c.name,
+        slug: c.slug,
+        children: [],
+      });
+    });
+    flat.forEach((c) => {
+      if (c.parentId && map.has(c.parentId)) {
+        map.get(c.parentId)!.children.push(map.get(c.id)!);
+      }
+    });
+    return map;
+  }
+
+  private buildTree(flat: Category[]): CategoryTreeDto[] {
+    const map = this.buildMap(flat);
+    const roots: CategoryTreeDto[] = [];
+    flat.forEach((c) => {
+      if (!c.parentId || !map.has(c.parentId)) roots.push(map.get(c.id)!);
+    });
+    return roots;
   }
 
   async softDelete(id: string): Promise<void> {

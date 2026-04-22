@@ -7,6 +7,7 @@ import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto'
 import {
   UserNotFoundException,
   UnauthorizedUserUpdateException,
+  DuplicateUserException,
 } from './exceptions/user.exceptions';
 
 @Injectable()
@@ -61,16 +62,15 @@ export class UsersService {
       `Post confirmation for id=${id} email=${email} source=${dto.triggerSource}`,
     );
 
-    const existing = await this.usersRepository.findOne({ where: { id } });
+    const existing = await this.usersRepository.findOne({
+      where: [{ id }, { email }],
+    });
 
     if (existing) {
-      existing.email = email;
-      if (firstName) existing.firstName = firstName;
-      if (lastName) existing.lastName = lastName;
-      existing.updatedAt = new Date();
-
-      this.logger.log(`Updating existing user id=${id}`);
-      return this.usersRepository.save(existing);
+      if (existing.id === id) {
+        throw new DuplicateUserException('sub', id);
+      }
+      throw new DuplicateUserException('email', email);
     }
 
     const user = this.usersRepository.create({

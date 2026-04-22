@@ -12,6 +12,13 @@ import {
   TenantOwnerNotFoundException,
 } from './exceptions/tenant.exceptions';
 
+export interface OnboardingStatus {
+  createTenant: {
+    completed: boolean;
+    tenant: Pick<Tenant, 'id' | 'name' | 'domain' | 'createdAt'> | null;
+  };
+}
+
 @Injectable()
 export class TenantsService {
   private readonly logger = new Logger(TenantsService.name);
@@ -57,5 +64,28 @@ export class TenantsService {
 
     this.logger.log(`Tenant created: ${tenant.id} by user: ${user.id}`);
     return tenant;
+  }
+
+  async getOnboardingStatus(cognitoSub: string): Promise<OnboardingStatus> {
+    const tenantUser = await this.tenantUserRepository.findOne({
+      where: { userId: cognitoSub, deletedAt: IsNull() },
+      relations: ['tenant'],
+    });
+
+    const tenant = tenantUser?.tenant ?? null;
+
+    return {
+      createTenant: {
+        completed: !!tenant,
+        tenant: tenant
+          ? {
+              id: tenant.id,
+              name: tenant.name,
+              domain: tenant.domain,
+              createdAt: tenant.createdAt,
+            }
+          : null,
+      },
+    };
   }
 }
