@@ -2,13 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { UpdateUserBasicDto } from './dto/update-user-basic.dto';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
-import {
-  UserNotFoundException,
-  UnauthorizedUserUpdateException,
-  DuplicateUserException,
-} from './exceptions/user.exceptions';
+import { DuplicateUserException } from './exceptions/user.exceptions';
+import { DynamoService } from './dynamo.service';
 
 @Injectable()
 export class UsersService {
@@ -16,36 +12,8 @@ export class UsersService {
 
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    private readonly dynamoService: DynamoService,
   ) {}
-
-  async findById(id: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { id } });
-
-    if (!user) {
-      this.logger.warn(`User not found with id: ${id}`);
-      throw new UserNotFoundException(id);
-    }
-
-    return user;
-  }
-
-  async updateBasicInfo(
-    id: string,
-    updateData: UpdateUserBasicDto,
-    cognitoSub: string,
-  ): Promise<User> {
-    const user = await this.findById(id);
-
-    // id IS the Cognito sub, so this check prevents updating another user's profile
-    if (user.id !== cognitoSub) {
-      throw new UnauthorizedUserUpdateException();
-    }
-
-    Object.assign(user, updateData);
-    user.updatedAt = new Date();
-
-    return this.usersRepository.save(user);
-  }
 
   async upsertFromCognitoConfirmation(
     dto: CognitoPostConfirmationDto,
@@ -82,6 +50,19 @@ export class UsersService {
     });
 
     this.logger.log(`Creating new user id=${id}`);
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+
+    await this.dynamoService.putUser({
+      sub: saved.id,
+      email: saved.email,
+      firstName: saved.firstName,
+      lastName: saved.lastName,
+      isActive: saved.isActive,
+      pgUserId: saved.id,
+      tenants: [],
+      updatedAt: new Date().toISOString(),
+    });
+
+    return saved;
   }
 }

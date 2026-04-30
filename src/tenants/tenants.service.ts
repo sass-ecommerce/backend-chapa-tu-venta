@@ -11,6 +11,7 @@ import {
   TenantDomainAlreadyExistsException,
   TenantOwnerNotFoundException,
 } from './exceptions/tenant.exceptions';
+import { DynamoService } from '../users/dynamo.service';
 
 export interface OnboardingStatus {
   createTenant: {
@@ -32,6 +33,7 @@ export class TenantsService {
     private readonly tenantUserRepository: Repository<TenantUser>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly dynamoService: DynamoService,
   ) {}
 
   async create(dto: CreateTenantDto, cognitoSub: string): Promise<Tenant> {
@@ -54,13 +56,22 @@ export class TenantsService {
       this.tenantRepository.create(dto),
     );
 
-    await this.tenantUserRepository.save(
+    const tenantUser = await this.tenantUserRepository.save(
       this.tenantUserRepository.create({
         tenantId: tenant.id,
         userId: user.id,
         roleId: adminRole.id,
       }),
     );
+
+    await this.dynamoService.addTenantToUser(cognitoSub, {
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      tenantDomain: tenant.domain,
+      role: adminRole.name,
+      isActive: true,
+      pgTenantUserId: tenantUser.id,
+    });
 
     this.logger.log(`Tenant created: ${tenant.id} by user: ${user.id}`);
     return tenant;

@@ -22,4 +22,18 @@ export const ValidationSchema = Joi.object({
   AWS_COGNITO_CLIENT_ID: Joi.string()
     .required()
     .description('AWS Cognito App Client ID'),
+
+  // AWS DynamoDB
+  AWS_DYNAMODB_TABLE_NAME: Joi.string()
+    .required()
+    .description('DynamoDB table name for user-tenant replica'),
+
+  // AWS S3
+  AWS_S3_BUCKET_NAME: Joi.string().required().description('AWS S3 bucket name'),
+  AWS_S3_UPLOAD_URL_EXPIRES_IN: Joi.number()
+    .default(900)
+    .description('Presigned upload URL TTL in seconds'),
+  AWS_S3_DOWNLOAD_URL_EXPIRES_IN: Joi.number()
+    .default(3600)
+    .description('Presigned download URL TTL in seconds'),
 });

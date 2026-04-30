@@ -8,12 +8,15 @@ import {
   awsConfig,
   cognitoConfig,
   databaseConfig,
+  dynamoConfig,
+  s3Config,
 } from './config/configuration';
 import { ProductsModule } from './products/products.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CognitoAuthModule } from './cognito-auth/cognito-auth.module';
 import { AuthModule } from './auth/auth.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -25,7 +28,7 @@ import { AuthModule } from './auth/auth.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig, awsConfig, cognitoConfig],
+      load: [databaseConfig, awsConfig, cognitoConfig, s3Config, dynamoConfig],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -35,7 +38,7 @@ import { AuthModule } from './auth/auth.module';
         url: configService.get<string>('database.postgres.url'),
         autoLoadEntities: true,
         logger: 'advanced-console',
-        synchronize: true,
+        synchronize: false,
         logging: ['error', 'warn', 'query'],
       }),
     }),
@@ -46,6 +49,7 @@ import { AuthModule } from './auth/auth.module';
     CommonModule,
     CategoriesModule,
     ProductsModule,
+    StorageModule,
   ],
   controllers: [],
   providers: [],

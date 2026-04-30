@@ -6,9 +6,13 @@ import { TenantUser } from './entities/tenant-user.entity';
 import { User } from '../users/entities/user.entity';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tenant, Role, TenantUser, User])],
+  imports: [
+    TypeOrmModule.forFeature([Tenant, Role, TenantUser, User]),
+    UsersModule,
+  ],
   controllers: [TenantsController],
   providers: [TenantsService],
   exports: [TenantsService, TypeOrmModule],
