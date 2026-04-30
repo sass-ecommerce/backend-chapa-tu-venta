@@ -1,10 +1,12 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity({ name: 'users', schema: 'public' })
 export class User {
-  // The primary key is the Cognito sub (UUID provided by AWS, not auto-generated)
-  @PrimaryColumn('uuid')
+  @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column('uuid', { nullable: true, unique: true })
+  sub: string | null;
 
   // Uniqueness enforced by partial index in migration: WHERE deleted_at IS NULL
   @Column('varchar', { length: 255, nullable: false })

@@ -48,7 +48,7 @@ export class DynamoService {
       new PutCommand({
         TableName: this.tableName,
         Item: {
-          PK: `USER#${user.sub}`,
+          userId: user.pgUserId,
           ...user,
           updatedAt: new Date().toISOString(),
         },
@@ -57,17 +57,17 @@ export class DynamoService {
   }
 
   async addTenantToUser(
-    sub: string,
+    userId: string,
     membership: DynamoTenantMembership,
   ): Promise<void> {
     this.logger.log(
-      `Adding tenant=${membership.tenantId} to DynamoDB user sub=${sub}`,
+      `Adding tenant=${membership.tenantId} to DynamoDB user userId=${userId}`,
     );
 
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
-        Key: { PK: `USER#${sub}` },
+        Key: { userId },
         UpdateExpression:
           'SET tenants = list_append(if_not_exists(tenants, :empty), :membership), updatedAt = :updatedAt',
         ExpressionAttributeValues: {
