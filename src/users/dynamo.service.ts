@@ -13,7 +13,7 @@ export interface DynamoUserItem {
   firstName: string | null;
   lastName: string | null;
   isActive: boolean;
-  pgUserId: string;
+  id: string;
   tenants: DynamoTenantMembership[];
   updatedAt: string;
 }
@@ -48,7 +48,6 @@ export class DynamoService {
       new PutCommand({
         TableName: this.tableName,
         Item: {
-          userId: user.pgUserId,
           ...user,
           updatedAt: new Date().toISOString(),
         },
@@ -67,7 +66,7 @@ export class DynamoService {
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
-        Key: { userId },
+        Key: { id: userId },
         UpdateExpression:
           'SET tenants = list_append(if_not_exists(tenants, :empty), :membership), updatedAt = :updatedAt',
         ExpressionAttributeValues: {

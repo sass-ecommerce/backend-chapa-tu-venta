@@ -14,6 +14,10 @@ export const ValidationSchema = Joi.object({
 
   // AWS
   AWS_REGION: Joi.string().default('us-east-1').description('AWS region'),
+  AWS_ACCESS_KEY_ID: Joi.string().optional().description('AWS access key ID'),
+  AWS_SECRET_ACCESS_KEY: Joi.string()
+    .optional()
+    .description('AWS secret access key'),
 
   // AWS Cognito
   AWS_COGNITO_USER_POOL_ID: Joi.string()

@@ -49,7 +49,7 @@ export class UsersService {
         firstName: updated.firstName,
         lastName: updated.lastName,
         isActive: updated.isActive,
-        pgUserId: updated.id,
+        id: updated.id,
         tenants: [],
         updatedAt: now.toISOString(),
       });
@@ -73,7 +73,7 @@ export class UsersService {
       firstName: saved.firstName,
       lastName: saved.lastName,
       isActive: saved.isActive,
-      pgUserId: saved.id,
+      id: saved.id,
       tenants: [],
       updatedAt: now.toISOString(),
     });
