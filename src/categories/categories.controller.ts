@@ -7,13 +7,16 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 
 @Controller('categories')
+@UseGuards(CognitoJwtGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,

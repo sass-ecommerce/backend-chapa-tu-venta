@@ -29,4 +29,16 @@ export class CognitoAdminService {
       }),
     );
   }
+
+  async setTenantId(sub: string, tenantId: string): Promise<void> {
+    this.logger.log(`Setting custom:tenantId=${tenantId} for sub=${sub}`);
+
+    await this.client.send(
+      new AdminUpdateUserAttributesCommand({
+        UserPoolId: this.userPoolId,
+        Username: sub,
+        UserAttributes: [{ Name: 'custom:tenantId', Value: tenantId }],
+      }),
+    );
+  }
 }

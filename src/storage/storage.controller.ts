@@ -10,8 +10,8 @@ import {
 import { S3Service } from './s3.service';
 import { PresignedUploadDto } from './dto/presigned-upload.dto';
 import { PresignedDownloadDto } from './dto/presigned-download.dto';
-import { CurrentUser } from '../cognito-auth/decorators/current-user.decorator';
-import type { CognitoUser } from '../cognito-auth/interfaces/cognito-user.interface';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CognitoUser } from '../auth/interfaces/cognito-user.interface';
 
 @Controller('storage')
 @UsePipes(

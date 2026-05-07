@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
@@ -19,8 +20,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 
 @Controller('products')
+@UseGuards(CognitoJwtGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,

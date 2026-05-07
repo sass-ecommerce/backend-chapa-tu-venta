@@ -9,9 +9,9 @@ import {
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
-import { CognitoJwtGuard } from '../cognito-auth/guards/cognito-jwt.guard';
-import { CurrentUser } from '../cognito-auth/decorators/current-user.decorator';
-import type { CognitoUser } from '../cognito-auth/interfaces/cognito-user.interface';
+import { CognitoJwtGuard } from '../auth/guards/cognito-jwt.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { CognitoUser } from '../auth/interfaces/cognito-user.interface';
 
 @Controller('tenants')
 @UseGuards(CognitoJwtGuard)
@@ -27,7 +27,7 @@ export class TenantsController {
 
   @Get('onboarding')
   async getOnboarding(@CurrentUser() user: CognitoUser) {
-    const status = await this.tenantsService.getOnboardingStatus(user.sub);
+    const status = await this.tenantsService.getOnboardingStatus(user.id!);
 
     return {
       code: 200,
@@ -38,7 +38,8 @@ export class TenantsController {
 
   @Post()
   async create(@Body() dto: CreateTenantDto, @CurrentUser() user: CognitoUser) {
-    const tenant = await this.tenantsService.create(dto, user.sub);
+    console.log('from user:', user);
+    const tenant = await this.tenantsService.create(dto, user.id!);
 
     return {
       code: 201,

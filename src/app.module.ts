@@ -14,7 +14,6 @@ import {
 import { ProductsModule } from './products/products.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CategoriesModule } from './categories/categories.module';
-import { CognitoAuthModule } from './cognito-auth/cognito-auth.module';
 import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './storage/storage.module';
 
@@ -42,7 +41,6 @@ import { StorageModule } from './storage/storage.module';
         logging: ['error', 'warn', 'query'],
       }),
     }),
-    CognitoAuthModule,
     AuthModule,
     TenantsModule,
     UsersModule,
@@ -54,8 +52,4 @@ import { StorageModule } from './storage/storage.module';
   controllers: [],
   providers: [],
 })
-export class AppModule /*implements NestModule */ {
-  // configure(consumer: MiddlewareConsumer) {
-  //   consumer.apply(RequestIdMiddleware).forRoutes('*');
-  // }
-}
+export class AppModule {}

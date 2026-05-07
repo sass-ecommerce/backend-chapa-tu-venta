@@ -7,4 +7,6 @@ export interface CognitoUser {
   username: string; // username in Cognito (usually email)
   groups: string[]; // cognito:groups → roles
   clientId: string; // client_id (App Client ID)
+  id?: null; // custom:id → internal DB primary key
+  tenantId: string | null; // custom:tenantId → tenant assigned to the user
 }

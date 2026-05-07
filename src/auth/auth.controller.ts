@@ -17,8 +17,8 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Public } from '../cognito-auth/decorators/public.decorator';
-import { CognitoJwtGuard } from '../cognito-auth/guards/cognito-jwt.guard';
+import { Public } from './decorators/public.decorator';
+import { CognitoJwtGuard } from './guards/cognito-jwt.guard';
 
 @Controller('auth')
 @UsePipes(
