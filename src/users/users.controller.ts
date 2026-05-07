@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
-import { Public } from '../cognito-auth/decorators/public.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('users')
 @UsePipes(

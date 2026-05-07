@@ -12,6 +12,7 @@ import {
   TenantOwnerNotFoundException,
 } from './exceptions/tenant.exceptions';
 import { DynamoService } from '../users/dynamo.service';
+import { CognitoAdminService } from '../auth/cognito-admin.service';
 
 export interface OnboardingStatus {
   createTenant: {
@@ -34,18 +35,21 @@ export class TenantsService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly dynamoService: DynamoService,
+    private readonly cognitoAdminService: CognitoAdminService,
   ) {}
 
-  async create(dto: CreateTenantDto, cognitoSub: string): Promise<Tenant> {
+  async create(dto: CreateTenantDto, userId: string): Promise<Tenant> {
+    console.log('Creating tenant with data:', dto, 'for user:', userId);
+
     const existing = await this.tenantRepository.findOne({
       where: { domain: dto.domain, deletedAt: IsNull() },
     });
     if (existing) throw new TenantDomainAlreadyExistsException(dto.domain);
 
     const user = await this.userRepository.findOne({
-      where: { id: cognitoSub },
+      where: { id: userId, deletedAt: IsNull() },
     });
-    if (!user) throw new TenantOwnerNotFoundException(cognitoSub);
+    if (!user) throw new TenantOwnerNotFoundException(userId);
 
     const adminRole = await this.roleRepository.findOne({
       where: { name: 'ADMINISTRADOR', deletedAt: IsNull() },
@@ -64,7 +68,7 @@ export class TenantsService {
       }),
     );
 
-    await this.dynamoService.addTenantToUser(cognitoSub, {
+    await this.dynamoService.addTenantToUser(userId, {
       tenantId: tenant.id,
       tenantName: tenant.name,
       tenantDomain: tenant.domain,
@@ -73,13 +77,15 @@ export class TenantsService {
       pgTenantUserId: tenantUser.id,
     });
 
+    await this.cognitoAdminService.setTenantId(user.sub!, tenant.id);
+
     this.logger.log(`Tenant created: ${tenant.id} by user: ${user.id}`);
     return tenant;
   }
 
-  async getOnboardingStatus(cognitoSub: string): Promise<OnboardingStatus> {
+  async getOnboardingStatus(userId: string): Promise<OnboardingStatus> {
     const tenantUser = await this.tenantUserRepository.findOne({
-      where: { userId: cognitoSub, deletedAt: IsNull() },
+      where: { userId: userId, deletedAt: IsNull() },
       relations: ['tenant'],
     });
 

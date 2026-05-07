@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
 import { DynamoService } from './dynamo.service';
-import { CognitoAdminService } from './cognito-admin.service';
+import { CognitoAdminService } from '../auth/cognito-admin.service';
 
 @Injectable()
 export class UsersService {
