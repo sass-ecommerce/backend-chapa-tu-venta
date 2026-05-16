@@ -38,3 +38,9 @@ export class UnauthorizedUserUpdateException extends ApiException {
     super(20, 'You can only update your own profile', undefined, 403);
   }
 }
+
+export class UserAlreadyDeletedException extends ApiException {
+  constructor() {
+    super(25, 'User account is already deleted', undefined, 409);
+  }
+}

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   CognitoIdentityProviderClient,
   AdminUpdateUserAttributesCommand,
+  AdminDeleteUserCommand,
 } from '@aws-sdk/client-cognito-identity-provider';
 
 @Injectable()
@@ -26,6 +27,17 @@ export class CognitoAdminService {
         UserPoolId: this.userPoolId,
         Username: sub,
         UserAttributes: [{ Name: 'custom:id', Value: id }],
+      }),
+    );
+  }
+
+  async deleteUser(sub: string): Promise<void> {
+    this.logger.log(`Deleting Cognito user sub=${sub}`);
+
+    await this.client.send(
+      new AdminDeleteUserCommand({
+        UserPoolId: this.userPoolId,
+        Username: sub,
       }),
     );
   }

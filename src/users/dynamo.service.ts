@@ -5,6 +5,7 @@ import {
   DynamoDBDocumentClient,
   PutCommand,
   UpdateCommand,
+  DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
 
 export interface DynamoUserItem {
@@ -51,6 +52,17 @@ export class DynamoService {
           ...user,
           updatedAt: new Date().toISOString(),
         },
+      }),
+    );
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    this.logger.log(`Deleting DynamoDB user userId=${userId}`);
+
+    await this.client.send(
+      new DeleteCommand({
+        TableName: this.tableName,
+        Key: { id: userId },
       }),
     );
   }

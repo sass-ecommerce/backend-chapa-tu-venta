@@ -5,6 +5,10 @@ import { User } from './entities/user.entity';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
 import { DynamoService } from './dynamo.service';
 import { CognitoAdminService } from '../auth/cognito-admin.service';
+import {
+  UserAlreadyDeletedException,
+  UserNotFoundException,
+} from './exceptions/user.exceptions';
 
 @Injectable()
 export class UsersService {
@@ -87,5 +91,81 @@ export class UsersService {
     ]);
 
     return saved;
+  }
+
+  async bulkDeleteByEmails(
+    emails: string[],
+  ): Promise<{
+    deleted: string[];
+    failed: { email: string; reason: string }[];
+  }> {
+    const deleted: string[] = [];
+    const failed: { email: string; reason: string }[] = [];
+
+    await Promise.all(
+      emails.map(async (email) => {
+        const user = await this.usersRepository.findOne({ where: { email } });
+
+        if (!user) {
+          failed.push({ email, reason: 'User not found' });
+          return;
+        }
+
+        if (user.deletedAt !== null) {
+          failed.push({ email, reason: 'User already deleted' });
+          return;
+        }
+
+        try {
+          const now = new Date();
+          await this.usersRepository.update(user.id, {
+            isActive: false,
+            deletedAt: now,
+            updatedAt: now,
+          });
+
+          await Promise.all([
+            this.dynamoService.deleteUser(user.id),
+            this.cognitoAdminService.deleteUser(user.sub!),
+          ]);
+
+          deleted.push(email);
+          this.logger.log(`Bulk deleted user email=${email} id=${user.id}`);
+        } catch (err) {
+          this.logger.error(`Failed to delete user email=${email}`, err);
+          failed.push({ email, reason: 'Internal error during deletion' });
+        }
+      }),
+    );
+
+    return { deleted, failed };
+  }
+
+  async deleteMe(cognitoSub: string): Promise<void> {
+    const user = await this.usersRepository.findOne({
+      where: { sub: cognitoSub },
+    });
+
+    if (!user) {
+      throw new UserNotFoundException(cognitoSub);
+    }
+
+    if (user.deletedAt !== null) {
+      throw new UserAlreadyDeletedException();
+    }
+
+    const now = new Date();
+    await this.usersRepository.update(user.id, {
+      isActive: false,
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    await Promise.all([
+      this.dynamoService.deleteUser(user.id),
+      this.cognitoAdminService.deleteUser(cognitoSub),
+    ]);
+
+    this.logger.log(`User deleted sub=${cognitoSub} id=${user.id}`);
   }
 }
