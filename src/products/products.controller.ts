@@ -21,6 +21,8 @@ import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { QueryProductDto } from './dto/query-product.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
 
 @Controller('products')
 @UseGuards(CognitoJwtGuard)
@@ -35,8 +37,11 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  async create(@Body() dto: CreateProductDto) {
-    const product = await this.productsService.create(dto);
+  async create(
+    @CurrentUser() user: CognitoUser,
+    @Body() dto: CreateProductDto,
+  ) {
+    const product = await this.productsService.create(dto, user.tenantId!);
     return {
       code: 201,
       message: 'Product created successfully',
@@ -45,8 +50,11 @@ export class ProductsController {
   }
 
   @Get()
-  async findAll(@Query() query: QueryProductDto) {
-    const result = await this.productsService.findAll(query);
+  async findAll(
+    @CurrentUser() user: CognitoUser,
+    @Query() query: QueryProductDto,
+  ) {
+    const result = await this.productsService.findAll(query, user.tenantId!);
     return {
       code: 200,
       message: 'Products retrieved successfully',
@@ -56,10 +64,15 @@ export class ProductsController {
 
   @Post(':id/variants')
   async createVariants(
+    @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateProductVariantsDto,
   ) {
-    const variants = await this.productsService.createVariants(id, dto);
+    const variants = await this.productsService.createVariants(
+      id,
+      dto,
+      user.tenantId!,
+    );
     return {
       code: 201,
       message: 'Variants created successfully',
@@ -68,8 +81,14 @@ export class ProductsController {
   }
 
   @Get(':id/variants')
-  async findVariants(@Param('id', ParseUUIDPipe) id: string) {
-    const variants = await this.productsService.findVariantsByProduct(id);
+  async findVariants(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const variants = await this.productsService.findVariantsByProduct(
+      id,
+      user.tenantId!,
+    );
     return {
       code: 200,
       message: 'Variants retrieved successfully',
@@ -77,13 +96,17 @@ export class ProductsController {
     };
   }
 
-  // 6. Actualizar variante (solo una por vez) — debe ir antes de PATCH :id
   @Patch('variants/:id')
   async updateVariant(
+    @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductVariantDto,
   ) {
-    const variant = await this.productsService.updateVariant(id, dto);
+    const variant = await this.productsService.updateVariant(
+      id,
+      dto,
+      user.tenantId!,
+    );
     return {
       code: 200,
       message: 'Variant updated successfully',
@@ -91,13 +114,13 @@ export class ProductsController {
     };
   }
 
-  // 5. Actualizar producto base
   @Patch(':id')
   async update(
+    @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,
   ) {
-    const product = await this.productsService.update(id, dto);
+    const product = await this.productsService.update(id, dto, user.tenantId!);
     return {
       code: 200,
       message: 'Product updated successfully',
@@ -105,10 +128,12 @@ export class ProductsController {
     };
   }
 
-  // 7. Eliminación lógica de producto base
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    await this.productsService.softDelete(id);
+  async remove(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.productsService.softDelete(id, user.tenantId!);
   }
 }

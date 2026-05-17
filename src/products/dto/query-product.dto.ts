@@ -11,10 +11,6 @@ import {
 export class QueryProductDto {
   @IsUUID()
   @IsOptional()
-  tenantId?: string;
-
-  @IsUUID()
-  @IsOptional()
   categoryId?: string;
 
   @IsString()

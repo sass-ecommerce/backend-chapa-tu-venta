@@ -65,11 +65,14 @@ export class ProductsService {
     if (!category) throw new ProductCategoryMismatchException(categoryId);
   }
 
-  async create(dto: CreateProductDto): Promise<{ id: string }> {
-    await this.validateCategory(dto.categoryId, dto.tenantId);
+  async create(
+    dto: CreateProductDto,
+    tenantId: string,
+  ): Promise<{ id: string }> {
+    await this.validateCategory(dto.categoryId, tenantId);
 
     const product = this.productRepository.create({
-      tenantId: dto.tenantId,
+      tenantId,
       categoryId: dto.categoryId,
       name: dto.name,
       description: dto.description ?? null,
@@ -84,23 +87,16 @@ export class ProductsService {
 
   async findAll(
     query: QueryProductDto,
+    tenantId: string,
   ): Promise<{ data: object[]; meta: object }> {
-    const {
-      tenantId,
-      categoryId,
-      name,
-      isActive,
-      page = 1,
-      limit = 10,
-    } = query;
+    const { categoryId, name, isActive, page = 1, limit = 10 } = query;
 
     const conditions: string[] = ['p.deleted_at IS NULL'];
     const params: unknown[] = [];
 
-    if (tenantId) {
-      params.push(tenantId);
-      conditions.push(`p.tenant_id = $${params.length}`);
-    }
+    params.push(tenantId);
+    conditions.push(`p.tenant_id = $${params.length}`);
+
     if (categoryId) {
       params.push(categoryId);
       conditions.push(`p.category_id = $${params.length}`);
@@ -173,9 +169,13 @@ export class ProductsService {
     };
   }
 
-  async update(id: string, dto: UpdateProductDto): Promise<{ id: string }> {
+  async update(
+    id: string,
+    dto: UpdateProductDto,
+    tenantId: string,
+  ): Promise<{ id: string }> {
     const product = await this.productRepository.findOne({
-      where: { id, deletedAt: IsNull() },
+      where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new ProductNotFoundException(id);
 
@@ -194,9 +194,10 @@ export class ProductsService {
   async createVariants(
     productId: string,
     dto: CreateProductVariantsDto,
+    tenantId: string,
   ): Promise<ProductVariant[]> {
     const product = await this.productRepository.findOne({
-      where: { id: productId, deletedAt: IsNull() },
+      where: { id: productId, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new ProductNotFoundException(productId);
 
@@ -222,9 +223,12 @@ export class ProductsService {
     return saved;
   }
 
-  async findVariantsByProduct(productId: string): Promise<ProductVariant[]> {
+  async findVariantsByProduct(
+    productId: string,
+    tenantId: string,
+  ): Promise<ProductVariant[]> {
     const product = await this.productRepository.findOne({
-      where: { id: productId, deletedAt: IsNull() },
+      where: { id: productId, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new ProductNotFoundException(productId);
 
@@ -234,9 +238,9 @@ export class ProductsService {
     });
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, tenantId: string): Promise<void> {
     const product = await this.productRepository.findOne({
-      where: { id, deletedAt: IsNull() },
+      where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!product) throw new ProductNotFoundException(id);
 
@@ -248,12 +252,15 @@ export class ProductsService {
   async updateVariant(
     variantId: string,
     dto: UpdateProductVariantDto,
+    tenantId: string,
   ): Promise<{ id: string }> {
     const variant = await this.variantRepository.findOne({
       where: { id: variantId, deletedAt: IsNull() },
       relations: ['product'],
     });
-    if (!variant) throw new ProductVariantNotFoundException(variantId);
+
+    if (!variant || variant.product.tenantId !== tenantId)
+      throw new ProductVariantNotFoundException(variantId);
 
     if (dto.sku && dto.sku !== variant.sku) {
       const exists = await this.skuExistsInTenant(

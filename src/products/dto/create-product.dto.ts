@@ -11,9 +11,6 @@ import {
 
 export class CreateProductDto {
   @IsUUID()
-  tenantId: string;
-
-  @IsUUID()
   categoryId: string;
 
   @IsString()
