@@ -56,19 +56,20 @@ export class DynamoService {
     );
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async deleteUser(userId: string, sub: string): Promise<void> {
     this.logger.log(`Deleting DynamoDB user userId=${userId}`);
 
     await this.client.send(
       new DeleteCommand({
         TableName: this.tableName,
-        Key: { id: userId },
+        Key: { id: userId, sub },
       }),
     );
   }
 
   async addTenantToUser(
     userId: string,
+    sub: string,
     membership: DynamoTenantMembership,
   ): Promise<void> {
     this.logger.log(
@@ -78,7 +79,7 @@ export class DynamoService {
     await this.client.send(
       new UpdateCommand({
         TableName: this.tableName,
-        Key: { id: userId },
+        Key: { id: userId, sub },
         UpdateExpression:
           'SET tenants = list_append(if_not_exists(tenants, :empty), :membership), updatedAt = :updatedAt',
         ExpressionAttributeValues: {

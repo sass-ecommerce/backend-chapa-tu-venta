@@ -93,9 +93,7 @@ export class UsersService {
     return saved;
   }
 
-  async bulkDeleteByEmails(
-    emails: string[],
-  ): Promise<{
+  async bulkDeleteByEmails(emails: string[]): Promise<{
     deleted: string[];
     failed: { email: string; reason: string }[];
   }> {
@@ -125,7 +123,7 @@ export class UsersService {
           });
 
           await Promise.all([
-            this.dynamoService.deleteUser(user.id),
+            this.dynamoService.deleteUser(user.id, user.sub!),
             this.cognitoAdminService.deleteUser(user.sub!),
           ]);
 
@@ -162,7 +160,7 @@ export class UsersService {
     });
 
     await Promise.all([
-      this.dynamoService.deleteUser(user.id),
+      this.dynamoService.deleteUser(user.id, cognitoSub),
       this.cognitoAdminService.deleteUser(cognitoSub),
     ]);
 

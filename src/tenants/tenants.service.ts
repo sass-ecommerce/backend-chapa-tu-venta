@@ -68,7 +68,7 @@ export class TenantsService {
       }),
     );
 
-    await this.dynamoService.addTenantToUser(userId, {
+    await this.dynamoService.addTenantToUser(userId, user.sub!, {
       tenantId: tenant.id,
       tenantName: tenant.name,
       tenantDomain: tenant.domain,
