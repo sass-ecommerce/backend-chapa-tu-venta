@@ -47,77 +47,21 @@ export class CategoriesService {
     return saved;
   }
 
-  async findAllByTenant(
-    tenantId: string,
-    withChildren: boolean,
-  ): Promise<CategoryTreeDto[]> {
-    if (!withChildren) {
-      const roots = await this.categoryRepository.find({
-        select: ['id', 'parentId', 'type', 'name', 'slug'],
-        where: { tenantId, type: CategoryType.BASE, deletedAt: IsNull() },
-        order: { createdAt: 'ASC' },
-      });
-      return roots.map((c) => ({
-        id: c.id,
-        parentId: c.parentId,
-        type: c.type,
-        name: c.name,
-        slug: c.slug,
-        children: [],
-      }));
-    }
-
-    const flat = await this.categoryRepository.find({
-      select: ['id', 'parentId', 'type', 'name', 'slug'],
-      where: { tenantId, deletedAt: IsNull() },
+  async findAllByTenant(tenantId: string): Promise<CategoryTreeDto[]> {
+    return this.categoryRepository.find({
+      select: ['id', 'name', 'slug'],
+      where: { tenantId, deletedAt: IsNull(), type: CategoryType.BASE },
       order: { createdAt: 'ASC' },
     });
-    return this.buildTree(flat);
   }
 
-  async findOne(id: string, tenantId: string): Promise<CategoryTreeDto> {
-    const found = await this.categoryRepository.findOne({
-      where: { id, tenantId, deletedAt: IsNull() },
+  async findOne(id: string, tenantId: string): Promise<CategoryTreeDto[]> {
+    const found = await this.categoryRepository.find({
+      select: ['id', 'name', 'slug'],
+      where: { parentId: id, tenantId, deletedAt: IsNull() },
     });
     if (!found) throw new CategoryNotFoundException(id);
-
-    const flat = await this.categoryRepository.find({
-      select: ['id', 'parentId', 'type', 'name', 'slug'],
-      where: { tenantId, deletedAt: IsNull() },
-      order: { createdAt: 'ASC' },
-    });
-
-    const map = this.buildMap(flat);
-    return map.get(id)!;
-  }
-
-  private buildMap(flat: Category[]): Map<string, CategoryTreeDto> {
-    const map = new Map<string, CategoryTreeDto>();
-    flat.forEach((c) => {
-      map.set(c.id, {
-        id: c.id,
-        parentId: c.parentId,
-        type: c.type,
-        name: c.name,
-        slug: c.slug,
-        children: [],
-      });
-    });
-    flat.forEach((c) => {
-      if (c.parentId && map.has(c.parentId)) {
-        map.get(c.parentId)!.children.push(map.get(c.id)!);
-      }
-    });
-    return map;
-  }
-
-  private buildTree(flat: Category[]): CategoryTreeDto[] {
-    const map = this.buildMap(flat);
-    const roots: CategoryTreeDto[] = [];
-    flat.forEach((c) => {
-      if (c.type === CategoryType.BASE) roots.push(map.get(c.id)!);
-    });
-    return roots;
+    return found;
   }
 
   async softDelete(id: string, tenantId: string): Promise<void> {
