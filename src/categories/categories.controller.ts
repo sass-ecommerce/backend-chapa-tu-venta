@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
+  ParseBoolPipe,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -42,8 +45,15 @@ export class CategoriesController {
   }
 
   @Get()
-  async findAll(@CurrentUser() user: CognitoUser) {
-    const tree = await this.categoriesService.findAllByTenant(user.tenantId!);
+  async findAll(
+    @CurrentUser() user: CognitoUser,
+    @Query('children', new DefaultValuePipe(false), ParseBoolPipe)
+    withChildren: boolean,
+  ) {
+    const tree = await this.categoriesService.findAllByTenant(
+      user.tenantId!,
+      withChildren,
+    );
     return {
       code: 200,
       message: 'Categories retrieved successfully',

@@ -4,6 +4,7 @@ import { IsNull, Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CategoryTreeDto } from './dto/category-tree.dto';
+import { CategoryType } from './enums/category-type.enum';
 import {
   CategoryHasChildrenException,
   CategoryNotFoundException,
@@ -36,6 +37,7 @@ export class CategoriesService {
     const category = this.categoryRepository.create({
       tenantId,
       parentId: dto.parentId ?? null,
+      type: dto.parentId ? CategoryType.CHILDREN : CategoryType.BASE,
       name: dto.name,
       slug: dto.slug,
     });
@@ -45,9 +47,28 @@ export class CategoriesService {
     return saved;
   }
 
-  async findAllByTenant(tenantId: string): Promise<CategoryTreeDto[]> {
+  async findAllByTenant(
+    tenantId: string,
+    withChildren: boolean,
+  ): Promise<CategoryTreeDto[]> {
+    if (!withChildren) {
+      const roots = await this.categoryRepository.find({
+        select: ['id', 'parentId', 'type', 'name', 'slug'],
+        where: { tenantId, type: CategoryType.BASE, deletedAt: IsNull() },
+        order: { createdAt: 'ASC' },
+      });
+      return roots.map((c) => ({
+        id: c.id,
+        parentId: c.parentId,
+        type: c.type,
+        name: c.name,
+        slug: c.slug,
+        children: [],
+      }));
+    }
+
     const flat = await this.categoryRepository.find({
-      select: ['id', 'parentId', 'name', 'slug'],
+      select: ['id', 'parentId', 'type', 'name', 'slug'],
       where: { tenantId, deletedAt: IsNull() },
       order: { createdAt: 'ASC' },
     });
@@ -61,7 +82,7 @@ export class CategoriesService {
     if (!found) throw new CategoryNotFoundException(id);
 
     const flat = await this.categoryRepository.find({
-      select: ['id', 'parentId', 'name', 'slug'],
+      select: ['id', 'parentId', 'type', 'name', 'slug'],
       where: { tenantId, deletedAt: IsNull() },
       order: { createdAt: 'ASC' },
     });
@@ -76,6 +97,7 @@ export class CategoriesService {
       map.set(c.id, {
         id: c.id,
         parentId: c.parentId,
+        type: c.type,
         name: c.name,
         slug: c.slug,
         children: [],
@@ -93,7 +115,7 @@ export class CategoriesService {
     const map = this.buildMap(flat);
     const roots: CategoryTreeDto[] = [];
     flat.forEach((c) => {
-      if (!c.parentId || !map.has(c.parentId)) roots.push(map.get(c.id)!);
+      if (c.type === CategoryType.BASE) roots.push(map.get(c.id)!);
     });
     return roots;
   }

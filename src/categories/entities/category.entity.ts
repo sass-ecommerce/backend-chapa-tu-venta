@@ -6,6 +6,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { CategoryType } from '../enums/category-type.enum';
 
 @Entity({ name: 'categories', schema: 'public' })
 export class Category {
@@ -17,6 +18,9 @@ export class Category {
 
   @Column('uuid', { name: 'parent_id', nullable: true })
   parentId: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: false, default: 'BASE' })
+  type: CategoryType;
 
   @Column('varchar', { length: 255, nullable: false })
   name: string;
