@@ -5,6 +5,7 @@ import { Category } from './entities/category.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CategoryTreeDto } from './dto/category-tree.dto';
 import {
+  CategoryHasChildrenException,
   CategoryNotFoundException,
   CategoryParentNotFoundException,
   CategorySlugAlreadyExistsException,
@@ -19,25 +20,21 @@ export class CategoriesService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async create(dto: CreateCategoryDto): Promise<Category> {
+  async create(dto: CreateCategoryDto, tenantId: string): Promise<Category> {
     const slugExists = await this.categoryRepository.findOne({
-      where: { tenantId: dto.tenantId, slug: dto.slug, deletedAt: IsNull() },
+      where: { tenantId, slug: dto.slug, deletedAt: IsNull() },
     });
     if (slugExists) throw new CategorySlugAlreadyExistsException(dto.slug);
 
     if (dto.parentId) {
       const parent = await this.categoryRepository.findOne({
-        where: {
-          id: dto.parentId,
-          tenantId: dto.tenantId,
-          deletedAt: IsNull(),
-        },
+        where: { id: dto.parentId, tenantId, deletedAt: IsNull() },
       });
       if (!parent) throw new CategoryParentNotFoundException(dto.parentId);
     }
 
     const category = this.categoryRepository.create({
-      tenantId: dto.tenantId,
+      tenantId,
       parentId: dto.parentId ?? null,
       name: dto.name,
       slug: dto.slug,
@@ -57,16 +54,15 @@ export class CategoriesService {
     return this.buildTree(flat);
   }
 
-  async findOne(id: string): Promise<CategoryTreeDto> {
+  async findOne(id: string, tenantId: string): Promise<CategoryTreeDto> {
     const found = await this.categoryRepository.findOne({
-      select: { id: true, tenantId: true },
-      where: { id, deletedAt: IsNull() },
+      where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!found) throw new CategoryNotFoundException(id);
 
     const flat = await this.categoryRepository.find({
       select: ['id', 'parentId', 'name', 'slug'],
-      where: { tenantId: found.tenantId, deletedAt: IsNull() },
+      where: { tenantId, deletedAt: IsNull() },
       order: { createdAt: 'ASC' },
     });
 
@@ -102,11 +98,16 @@ export class CategoriesService {
     return roots;
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, tenantId: string): Promise<void> {
     const category = await this.categoryRepository.findOne({
-      where: { id, deletedAt: IsNull() },
+      where: { id, tenantId, deletedAt: IsNull() },
     });
     if (!category) throw new CategoryNotFoundException(id);
+
+    const childCount = await this.categoryRepository.count({
+      where: { parentId: id, tenantId, deletedAt: IsNull() },
+    });
+    if (childCount > 0) throw new CategoryHasChildrenException(id);
 
     category.deletedAt = new Date();
     category.updatedAt = new Date();

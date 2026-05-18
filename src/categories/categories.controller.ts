@@ -6,7 +6,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  Query,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -14,6 +13,8 @@ import {
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
 
 @Controller('categories')
 @UseGuards(CognitoJwtGuard)
@@ -28,8 +29,11 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
-  async create(@Body() dto: CreateCategoryDto) {
-    const category = await this.categoriesService.create(dto);
+  async create(
+    @CurrentUser() user: CognitoUser,
+    @Body() dto: CreateCategoryDto,
+  ) {
+    const category = await this.categoriesService.create(dto, user.tenantId!);
     return {
       code: 201,
       message: 'Category created successfully',
@@ -38,8 +42,8 @@ export class CategoriesController {
   }
 
   @Get()
-  async findAll(@Query('tenantId', ParseUUIDPipe) tenantId: string) {
-    const tree = await this.categoriesService.findAllByTenant(tenantId);
+  async findAll(@CurrentUser() user: CognitoUser) {
+    const tree = await this.categoriesService.findAllByTenant(user.tenantId!);
     return {
       code: 200,
       message: 'Categories retrieved successfully',
@@ -48,8 +52,11 @@ export class CategoriesController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const category = await this.categoriesService.findOne(id);
+  async findOne(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const category = await this.categoriesService.findOne(id, user.tenantId!);
     return {
       code: 200,
       message: 'Category retrieved successfully',
@@ -58,8 +65,11 @@ export class CategoriesController {
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    await this.categoriesService.softDelete(id);
+  async remove(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.categoriesService.softDelete(id, user.tenantId!);
     return {
       code: 200,
       message: 'Category deleted successfully',

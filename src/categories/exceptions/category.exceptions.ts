@@ -28,3 +28,14 @@ export class CategoryParentNotFoundException extends ApiException {
     );
   }
 }
+
+export class CategoryHasChildrenException extends ApiException {
+  constructor(id: string) {
+    super(
+      23,
+      `Category '${id}' cannot be deleted because it has subcategories`,
+      undefined,
+      HttpStatus.CONFLICT,
+    );
+  }
+}

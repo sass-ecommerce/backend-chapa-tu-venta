@@ -9,9 +9,6 @@ import {
 
 export class CreateCategoryDto {
   @IsUUID()
-  tenantId: string;
-
-  @IsUUID()
   @IsOptional()
   parentId?: string;
 
@@ -24,7 +21,8 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   @MaxLength(255)
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'slug must be lowercase alphanumeric with hyphens (e.g. ropa-deportiva)',
+    message:
+      'slug must be lowercase alphanumeric with hyphens (e.g. ropa-deportiva)',
   })
   slug: string;
 }
