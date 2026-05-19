@@ -48,20 +48,32 @@ export class CategoriesService {
   }
 
   async findAllByTenant(tenantId: string): Promise<CategoryTreeDto[]> {
-    return this.categoryRepository.find({
-      select: ['id', 'name', 'slug'],
-      where: { tenantId, deletedAt: IsNull(), type: CategoryType.BASE },
-      order: { createdAt: 'ASC' },
-    });
+    return this.categoryRepository
+      .createQueryBuilder('c')
+      .select(['c.id AS id', 'c.name AS name', 'c.slug AS slug'])
+      .addSelect(
+        `(SELECT COUNT(*)::int FROM categories ch WHERE ch.parent_id = c.id AND ch.tenant_id = :tenantId AND ch.deleted_at IS NULL)`,
+        'childrenCount',
+      )
+      .where('c.tenant_id = :tenantId', { tenantId })
+      .andWhere('c.type = :type', { type: CategoryType.BASE })
+      .andWhere('c.deleted_at IS NULL')
+      .orderBy('c.created_at', 'ASC')
+      .getRawMany<CategoryTreeDto>();
   }
 
   async findOne(id: string, tenantId: string): Promise<CategoryTreeDto[]> {
-    const found = await this.categoryRepository.find({
-      select: ['id', 'name', 'slug'],
-      where: { parentId: id, tenantId, deletedAt: IsNull() },
-    });
-    if (!found) throw new CategoryNotFoundException(id);
-    return found;
+    return this.categoryRepository
+      .createQueryBuilder('c')
+      .select(['c.id AS id', 'c.name AS name', 'c.slug AS slug'])
+      .addSelect(
+        `(SELECT COUNT(*)::int FROM categories ch WHERE ch.parent_id = c.id AND ch.tenant_id = :tenantId AND ch.deleted_at IS NULL)`,
+        'childrenCount',
+      )
+      .where('c.parent_id = :id', { id })
+      .andWhere('c.tenant_id = :tenantId', { tenantId })
+      .andWhere('c.deleted_at IS NULL')
+      .getRawMany<CategoryTreeDto>();
   }
 
   async softDelete(id: string, tenantId: string): Promise<void> {
