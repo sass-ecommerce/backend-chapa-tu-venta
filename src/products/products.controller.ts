@@ -62,6 +62,19 @@ export class ProductsController {
     };
   }
 
+  @Get(':id')
+  async findOne(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const product = await this.productsService.findOne(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Product retrieved successfully',
+      data: product,
+    };
+  }
+
   @Post(':id/variants')
   async createVariants(
     @CurrentUser() user: CognitoUser,

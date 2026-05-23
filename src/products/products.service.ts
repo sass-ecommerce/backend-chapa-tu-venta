@@ -169,6 +169,50 @@ export class ProductsService {
     };
   }
 
+  async findOne(id: string, tenantId: string): Promise<object> {
+    const rows = await this.productRepository.query(
+      `
+      SELECT
+        p.id,
+        p.tenant_id    AS "tenantId",
+        p.category_id  AS "categoryId",
+        p.name,
+        p.description,
+        p.base_price   AS "basePrice",
+        p.is_active    AS "isActive",
+        c.id           AS "cat_id",
+        c.parent_id    AS "cat_parentId",
+        c.name         AS "cat_name",
+        c.slug         AS "cat_slug"
+      FROM products p
+      LEFT JOIN categories c ON c.id = p.category_id AND c.deleted_at IS NULL
+      WHERE p.id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL
+      `,
+      [id, tenantId],
+    );
+
+    if (!rows.length) throw new ProductNotFoundException(id);
+
+    const r = rows[0];
+    return {
+      id: r.id,
+      tenantId: r.tenantId,
+      categoryId: r.categoryId,
+      name: r.name,
+      description: r.description,
+      basePrice: r.basePrice,
+      isActive: r.isActive,
+      category: r.cat_id
+        ? {
+            id: r.cat_id,
+            parentId: r.cat_parentId,
+            name: r.cat_name,
+            slug: r.cat_slug,
+          }
+        : null,
+    };
+  }
+
   async update(
     id: string,
     dto: UpdateProductDto,
