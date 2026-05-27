@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   CognitoIdentityProviderClient,
@@ -38,6 +38,7 @@ import {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly cognitoClient: CognitoIdentityProviderClient;
   private readonly clientId: string;
 
@@ -69,6 +70,7 @@ export class AuthService {
         message: 'Verification code sent to your email',
       };
     } catch (error) {
+      this.logger.error('Error registering user', error);
       if (error instanceof UsernameExistsException) {
         throw new UserAlreadyExistsException(dto.email);
       }
@@ -88,6 +90,7 @@ export class AuthService {
 
       return { message: 'Account confirmed successfully. You can now log in.' };
     } catch (error) {
+      this.logger.error('Error confirming registration', error);
       if (
         error instanceof CodeMismatchException ||
         error instanceof ExpiredCodeException
@@ -109,6 +112,7 @@ export class AuthService {
 
       return { message: 'Verification code resent to your email' };
     } catch (error) {
+      this.logger.error('Error resending confirmation code', error);
       if (
         error instanceof LimitExceededException ||
         error instanceof TooManyRequestsException
@@ -140,6 +144,7 @@ export class AuthService {
         tokenType: tokens.TokenType!,
       };
     } catch (error) {
+      this.logger.error('Error logging in user', error);
       if (error instanceof NotAuthorizedException) {
         throw new InvalidCredentialsException();
       }
@@ -161,6 +166,7 @@ export class AuthService {
 
       return { message: 'Password reset code sent to your email' };
     } catch (error) {
+      this.logger.error('Error sending forgot password code', error);
       if (
         error instanceof LimitExceededException ||
         error instanceof TooManyRequestsException
@@ -184,6 +190,7 @@ export class AuthService {
 
       return { message: 'Password reset successfully. You can now log in.' };
     } catch (error) {
+      this.logger.error('Error resetting password', error);
       if (
         error instanceof CodeMismatchException ||
         error instanceof ExpiredCodeException
@@ -204,6 +211,7 @@ export class AuthService {
 
       return { message: 'Logged out successfully' };
     } catch (error) {
+      this.logger.error('Error logging out user', error);
       if (error instanceof NotAuthorizedException) {
         throw new InvalidAccessTokenException();
       }
@@ -230,6 +238,7 @@ export class AuthService {
         tokenType: tokens.TokenType!,
       };
     } catch (error) {
+      this.logger.error('Error refreshing token', error);
       if (error instanceof NotAuthorizedException) {
         throw new InvalidRefreshTokenException();
       }
