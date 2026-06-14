@@ -35,7 +35,6 @@ export class CognitoJwtStrategy extends PassportStrategy(
   private readonly clientId: string;
 
   validate(payload: any): CognitoUser {
-    console.log('JWT payload:', payload);
     if (payload.token_use !== 'access' || payload.client_id !== this.clientId) {
       throw new Error('Invalid token');
     }
