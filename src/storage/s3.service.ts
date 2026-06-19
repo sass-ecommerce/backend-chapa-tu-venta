@@ -9,6 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { PresignedUrlGenerationException } from './exceptions/storage.exceptions';
+import { StorageFolder } from './dto/presigned-upload.dto';
 
 @Injectable()
 export class S3Service {
@@ -32,14 +33,100 @@ export class S3Service {
     );
   }
 
-  async generateUploadUrl(
-    folder: string,
+  private buildProductsKey(
+    tenantId: string,
+    primaryIdentifier: string,
+    uuid: string,
+    ext: string,
+  ): string {
+    return `${tenantId}/${StorageFolder.PRODUCTS}/${primaryIdentifier}/${uuid}${ext}`;
+  }
+
+  private buildVariantsKey(
+    tenantId: string,
+    primaryIdentifier: string,
+    secondaryIdentifier: string,
+    uuid: string,
+    ext: string,
+  ): string {
+    return `${tenantId}/${StorageFolder.PRODUCTS}/${primaryIdentifier}/${StorageFolder.VARIANTS}/${secondaryIdentifier}/${uuid}${ext}`;
+  }
+
+  private buildAvatarsKey(
+    tenantId: string,
     userSub: string,
+    uuid: string,
+    ext: string,
+  ): string {
+    return `${tenantId}/${StorageFolder.AVATARS}/${userSub}/${uuid}${ext}`;
+  }
+
+  private buildStoresKey(
+    tenantId: string,
+    primaryIdentifier: string,
+    uuid: string,
+    ext: string,
+  ): string {
+    return `${tenantId}/${StorageFolder.STORES}/${primaryIdentifier}/${uuid}${ext}`;
+  }
+
+  private buildKey(
+    folder: StorageFolder,
+    tenantId: string,
+    userSub: string,
+    primaryIdentifier: string | undefined,
+    secondaryIdentifier: string | undefined,
+    uuid: string,
+    ext: string,
+  ): string {
+    switch (folder) {
+      case StorageFolder.PRODUCTS:
+        return this.buildProductsKey(
+          tenantId,
+          primaryIdentifier ?? userSub,
+          uuid,
+          ext,
+        );
+      case StorageFolder.VARIANTS:
+        return this.buildVariantsKey(
+          tenantId,
+          primaryIdentifier ?? userSub,
+          secondaryIdentifier ?? uuid,
+          uuid,
+          ext,
+        );
+      case StorageFolder.AVATARS:
+        return this.buildAvatarsKey(tenantId, userSub, uuid, ext);
+      case StorageFolder.STORES:
+        return this.buildStoresKey(
+          tenantId,
+          primaryIdentifier ?? userSub,
+          uuid,
+          ext,
+        );
+    }
+  }
+
+  async generateUploadUrl(
+    folder: StorageFolder,
+    userSub: string,
+    tenantId: string,
     fileName: string,
     contentType: string,
+    primaryIdentifier?: string,
+    secondaryIdentifier?: string,
   ): Promise<{ uploadUrl: string; key: string }> {
     const ext = extname(fileName);
-    const key = `${folder}/${userSub}/${randomUUID()}${ext}`;
+    const uuid = randomUUID();
+    const key = this.buildKey(
+      folder,
+      tenantId,
+      userSub,
+      primaryIdentifier,
+      secondaryIdentifier,
+      uuid,
+      ext,
+    );
 
     try {
       const command = new PutObjectCommand({

@@ -32,8 +32,11 @@ export class StorageController {
     const { uploadUrl, key } = await this.s3Service.generateUploadUrl(
       dto.folder,
       user.sub,
+      user.tenantId!,
       dto.fileName,
       dto.contentType,
+      dto.primaryIdentifier,
+      dto.secondaryIdentifier,
     );
     return {
       code: 200,
