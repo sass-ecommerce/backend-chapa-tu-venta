@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Category } from '../../categories/entities/category.entity';
 import { ProductVariant } from './product-variant.entity';
+import { ProductImage } from './product-image.entity';
 
 @Entity({ name: 'products', schema: 'public' })
 export class Product {
@@ -52,4 +53,7 @@ export class Product {
 
   @OneToMany(() => ProductVariant, (variant) => variant.product)
   variants: ProductVariant[];
+
+  @OneToMany(() => ProductImage, (image) => image.product)
+  images: ProductImage[];
 }

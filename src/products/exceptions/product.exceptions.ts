@@ -39,3 +39,14 @@ export class ProductCategoryMismatchException extends ApiException {
     );
   }
 }
+
+export class ProductImageNotFoundException extends ApiException {
+  constructor(id: string) {
+    super(
+      14,
+      `Product image '${id}' not found`,
+      undefined,
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}

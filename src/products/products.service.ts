@@ -3,17 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { ProductVariant } from './entities/product-variant.entity';
+import { ProductImage } from './entities/product-image.entity';
 import { Category } from '../categories/entities/category.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { AddProductImageDto } from './dto/add-product-image.dto';
 import {
   ProductNotFoundException,
   ProductVariantNotFoundException,
   ProductSkuAlreadyExistsException,
   ProductCategoryMismatchException,
+  ProductImageNotFoundException,
 } from './exceptions/product.exceptions';
 
 @Injectable()
@@ -25,6 +28,8 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductVariant)
     private readonly variantRepository: Repository<ProductVariant>,
+    @InjectRepository(ProductImage)
+    private readonly imageRepository: Repository<ProductImage>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
   ) {}
@@ -291,6 +296,63 @@ export class ProductsService {
     product.deletedAt = new Date();
     await this.productRepository.save(product);
     this.logger.log(`Product soft-deleted: ${id}`);
+  }
+
+  async addImage(dto: AddProductImageDto): Promise<ProductImage> {
+    const product = await this.productRepository.findOne({
+      where: { id: dto.productId, tenantId: dto.tenantId, deletedAt: IsNull() },
+    });
+    if (!product) throw new ProductNotFoundException(dto.productId);
+
+    if (dto.isPrimary) {
+      await this.imageRepository
+        .createQueryBuilder()
+        .update(ProductImage)
+        .set({ isPrimary: false, updatedAt: new Date() })
+        .where(
+          'product_id = :productId AND deleted_at IS NULL AND is_primary = true',
+          { productId: dto.productId },
+        )
+        .execute();
+    }
+
+    const image = this.imageRepository.create({
+      tenantId: dto.tenantId,
+      productId: dto.productId,
+      s3Key: dto.s3Key,
+      isPrimary: dto.isPrimary ?? false,
+      sortOrder: dto.sortOrder ?? 0,
+    });
+
+    const saved = await this.imageRepository.save(image);
+    this.logger.log(`Image added: ${saved.id}`);
+    return saved;
+  }
+
+  async removeImage(imageId: string, tenantId: string): Promise<void> {
+    const image = await this.imageRepository.findOne({
+      where: { id: imageId, tenantId, deletedAt: IsNull() },
+    });
+    if (!image) throw new ProductImageNotFoundException(imageId);
+
+    image.deletedAt = new Date();
+    await this.imageRepository.save(image);
+    this.logger.log(`Image soft-deleted: ${imageId}`);
+  }
+
+  async findImagesByProduct(
+    productId: string,
+    tenantId: string,
+  ): Promise<ProductImage[]> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId, tenantId, deletedAt: IsNull() },
+    });
+    if (!product) throw new ProductNotFoundException(productId);
+
+    return this.imageRepository.find({
+      where: { productId, deletedAt: IsNull() },
+      order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
+    });
   }
 
   async updateVariant(

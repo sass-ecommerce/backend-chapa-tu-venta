@@ -20,8 +20,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { AddProductImageDto } from './dto/add-product-image.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { Public } from 'src/auth/decorators/public.decorator';
 import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
 
 @Controller('products')
@@ -148,5 +150,41 @@ export class ProductsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     await this.productsService.softDelete(id, user.tenantId!);
+  }
+
+  @Post('images')
+  @Public()
+  async addImage(@Body() dto: AddProductImageDto) {
+    const image = await this.productsService.addImage(dto);
+    return {
+      code: 201,
+      message: 'Image added successfully',
+      data: image,
+    };
+  }
+
+  @Delete('images/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeImage(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.productsService.removeImage(id, user.tenantId!);
+  }
+
+  @Get(':id/images')
+  async findProductImages(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const images = await this.productsService.findImagesByProduct(
+      id,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Images retrieved successfully',
+      data: images,
+    };
   }
 }
