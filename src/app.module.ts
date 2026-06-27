@@ -16,6 +16,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './storage/storage.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StorageModule } from './storage/storage.module';
     CategoriesModule,
     ProductsModule,
     StorageModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],

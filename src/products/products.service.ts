@@ -18,6 +18,9 @@ import {
   ProductCategoryMismatchException,
   ProductImageNotFoundException,
 } from './exceptions/product.exceptions';
+import { EventBridgeService } from '../events/eventbridge.service';
+
+const PRODUCT_EVENT_SOURCE = 'ctv.products';
 
 @Injectable()
 export class ProductsService {
@@ -32,6 +35,7 @@ export class ProductsService {
     private readonly imageRepository: Repository<ProductImage>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    private readonly eventBridgeService: EventBridgeService,
   ) {}
 
   /**
@@ -86,6 +90,19 @@ export class ProductsService {
     });
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
+
+    await this.eventBridgeService.publish(
+      PRODUCT_EVENT_SOURCE,
+      'product.created',
+      {
+        id: saved.id,
+        tenantId: saved.tenantId,
+        categoryId: saved.categoryId,
+        name: saved.name,
+        basePrice: saved.basePrice,
+        isActive: saved.isActive,
+      },
+    );
 
     return { id: saved.id };
   }
