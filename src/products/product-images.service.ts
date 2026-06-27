@@ -57,12 +57,16 @@ export class ProductImagesService {
       PRODUCT_EVENT_SOURCE,
       'product.image.added',
       {
-        id: saved.id,
         tenantId: saved.tenantId,
         productId: saved.productId,
-        s3Key: saved.s3Key,
-        isPrimary: saved.isPrimary,
-        sortOrder: saved.sortOrder,
+        images: [
+          {
+            id: saved.id,
+            s3Key: saved.s3Key,
+            isPrimary: saved.isPrimary,
+            sortOrder: saved.sortOrder,
+          },
+        ],
       },
     );
 
