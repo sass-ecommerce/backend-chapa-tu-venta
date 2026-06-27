@@ -15,6 +15,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { ProductImagesService } from './product-images.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
@@ -36,7 +37,10 @@ import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
   }),
 )
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productImagesService: ProductImagesService,
+  ) {}
 
   @Post()
   async create(
@@ -155,7 +159,7 @@ export class ProductsController {
   @Post('images')
   @Public()
   async addImage(@Body() dto: AddProductImageDto) {
-    const image = await this.productsService.addImage(dto);
+    const image = await this.productImagesService.addImage(dto);
     return {
       code: 201,
       message: 'Image added successfully',
@@ -169,7 +173,7 @@ export class ProductsController {
     @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    await this.productsService.removeImage(id, user.tenantId!);
+    await this.productImagesService.removeImage(id, user.tenantId!);
   }
 
   @Get(':id/images')
@@ -177,7 +181,7 @@ export class ProductsController {
     @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const images = await this.productsService.findImagesByProduct(
+    const images = await this.productImagesService.findImagesByProduct(
       id,
       user.tenantId!,
     );
