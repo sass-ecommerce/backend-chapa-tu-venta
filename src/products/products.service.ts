@@ -90,7 +90,7 @@ export class ProductsService {
       PRODUCT_EVENT_SOURCE,
       'product.created',
       {
-        id: saved.id,
+        productId: saved.id,
         tenantId: saved.tenantId,
         categoryId: saved.categoryId,
         name: saved.name,
