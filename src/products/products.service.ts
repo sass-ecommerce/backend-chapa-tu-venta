@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { ProductVariant } from './entities/product-variant.entity';
+import { ProductImage } from './entities/product-image.entity';
 import { Category } from '../categories/entities/category.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -28,6 +29,8 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductVariant)
     private readonly variantRepository: Repository<ProductVariant>,
+    @InjectRepository(ProductImage)
+    private readonly imageRepository: Repository<ProductImage>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly eventBridgeService: EventBridgeService,
@@ -160,6 +163,21 @@ export class ProductsService {
       ),
     ]);
 
+    const productIds = rows.map((r) => r.id as string);
+    const images = productIds.length
+      ? await this.imageRepository.find({
+          where: { productId: In(productIds), deletedAt: IsNull() },
+          order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
+        })
+      : [];
+
+    const imagesByProductId = new Map<string, ProductImage[]>();
+    for (const image of images) {
+      const list = imagesByProductId.get(image.productId) ?? [];
+      list.push(image);
+      imagesByProductId.set(image.productId, list);
+    }
+
     const data = rows.map((r) => ({
       id: r.id,
       tenantId: r.tenantId,
@@ -176,6 +194,7 @@ export class ProductsService {
             slug: r.cat_slug,
           }
         : null,
+      images: imagesByProductId.get(r.id as string) ?? [],
     }));
 
     const total = parseInt(count as string, 10);
