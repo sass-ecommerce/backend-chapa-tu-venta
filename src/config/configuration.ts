@@ -31,3 +31,8 @@ export const s3Config = registerAs('s3', () => ({
 export const dynamoConfig = registerAs('dynamo', () => ({
   tableName: process.env.AWS_DYNAMODB_TABLE_NAME,
 }));
+
+export const redisConfig = registerAs('redis', () => ({
+  url: process.env.REDIS_PRIVATE_URL,
+  ttl: parseInt(process.env.REDIS_CACHE_TTL || '300000', 10),
+}));

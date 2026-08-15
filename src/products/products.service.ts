@@ -17,8 +17,11 @@ import {
   ProductCategoryMismatchException,
 } from './exceptions/product.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
+import { CacheService } from '../common/helpers/cache.service';
 
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
+const PRODUCTS_CACHE_RESOURCE = 'products';
+const PRODUCTS_LIST_CACHE_TTL_MS = 60_000;
 
 @Injectable()
 export class ProductsService {
@@ -34,6 +37,7 @@ export class ProductsService {
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly eventBridgeService: EventBridgeService,
+    private readonly cacheService: CacheService,
   ) {}
 
   /**
@@ -110,6 +114,13 @@ export class ProductsService {
     tenantId: string,
   ): Promise<{ data: object[]; meta: object }> {
     const { categoryId, name, isActive, page = 1, limit = 10 } = query;
+    const cacheParams = { categoryId, name, isActive, page, limit };
+
+    const cached = await this.cacheService.getList<{
+      data: object[];
+      meta: object;
+    }>(PRODUCTS_CACHE_RESOURCE, tenantId, cacheParams);
+    if (cached) return cached;
 
     const conditions: string[] = ['p.deleted_at IS NULL'];
     const params: unknown[] = [];
@@ -199,10 +210,18 @@ export class ProductsService {
 
     const total = parseInt(count as string, 10);
 
-    return {
+    const result = {
       data,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+    await this.cacheService.setList(
+      PRODUCTS_CACHE_RESOURCE,
+      tenantId,
+      cacheParams,
+      result,
+      PRODUCTS_LIST_CACHE_TTL_MS,
+    );
+    return result;
   }
 
   async findOne(id: string, tenantId: string): Promise<object> {

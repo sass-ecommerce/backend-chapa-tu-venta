@@ -40,4 +40,12 @@ export const ValidationSchema = Joi.object({
   AWS_S3_DOWNLOAD_URL_EXPIRES_IN: Joi.number()
     .default(3600)
     .description('Presigned download URL TTL in seconds'),
+
+  // Redis
+  REDIS_PRIVATE_URL: Joi.string()
+    .required()
+    .description('Redis connection URL'),
+  REDIS_CACHE_TTL: Joi.number()
+    .default(300000)
+    .description('Default cache TTL in milliseconds'),
 });

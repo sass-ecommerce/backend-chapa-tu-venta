@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CacheModule } from '@nestjs/cache-manager';
+import { createKeyv } from '@keyv/redis';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
 import {
@@ -9,6 +11,7 @@ import {
   cognitoConfig,
   databaseConfig,
   dynamoConfig,
+  redisConfig,
   s3Config,
 } from './config/configuration';
 import { ProductsModule } from './products/products.module';
@@ -28,7 +31,22 @@ import { EventsModule } from './events/events.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig, awsConfig, cognitoConfig, s3Config, dynamoConfig],
+      load: [
+        databaseConfig,
+        awsConfig,
+        cognitoConfig,
+        s3Config,
+        dynamoConfig,
+        redisConfig,
+      ],
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: (configService: ConfigService) => ({
+        stores: [createKeyv(configService.getOrThrow<string>('redis.url'))],
+        ttl: configService.get<number>('redis.ttl'),
+      }),
+      inject: [ConfigService],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
