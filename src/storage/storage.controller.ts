@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { S3Service } from './s3.service';
 import { PresignedUploadDto } from './dto/presigned-upload.dto';
-import { PresignedDownloadDto } from './dto/presigned-download.dto';
+import { PresignedViewDto } from './dto/presigned-view.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CognitoUser } from '../auth/interfaces/cognito-user.interface';
 
@@ -45,13 +45,13 @@ export class StorageController {
     };
   }
 
-  @Get('presigned-download')
-  async getDownloadUrl(@Query() dto: PresignedDownloadDto) {
-    const { downloadUrl } = await this.s3Service.generateDownloadUrl(dto.key);
+  @Get('presigned-view')
+  async getViewUrl(@Query() dto: PresignedViewDto) {
+    const { viewUrl } = await this.s3Service.generateViewUrl(dto.key);
     return {
       code: 200,
-      message: 'Presigned download URL generated',
-      data: { downloadUrl },
+      message: 'Presigned view URL generated',
+      data: { viewUrl },
     };
   }
 }

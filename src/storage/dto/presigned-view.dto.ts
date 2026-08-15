@@ -1,6 +1,6 @@
 import { IsString } from 'class-validator';
 
-export class PresignedDownloadDto {
+export class PresignedViewDto {
   @IsString()
   key: string;
 }

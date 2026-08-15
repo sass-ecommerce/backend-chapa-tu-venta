@@ -145,18 +145,19 @@ export class S3Service {
     }
   }
 
-  async generateDownloadUrl(key: string): Promise<{ downloadUrl: string }> {
+  async generateViewUrl(key: string): Promise<{ viewUrl: string }> {
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
         Key: key,
+        ResponseContentDisposition: 'inline',
       });
 
-      const downloadUrl = await getSignedUrl(this.client, command, {
+      const viewUrl = await getSignedUrl(this.client, command, {
         expiresIn: this.downloadExpiresIn,
       });
 
-      return { downloadUrl };
+      return { viewUrl };
     } catch {
       throw new PresignedUrlGenerationException();
     }
