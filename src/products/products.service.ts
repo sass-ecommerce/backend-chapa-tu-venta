@@ -76,6 +76,37 @@ export class ProductsService {
     if (!category) throw new ProductCategoryMismatchException(categoryId);
   }
 
+  /**
+   * Sube por la cadena de categorías padre (self-referencing) a partir de
+   * `parentId` hasta la raíz, usando una CTE recursiva para evitar N+1.
+   * Retorna el resultado ordenado raíz -> padre inmediato.
+   */
+  private async getCategoryAncestors(
+    parentId: string,
+    tenantId: string,
+  ): Promise<
+    { id: string; parentId: string | null; name: string; slug: string }[]
+  > {
+    return this.categoryRepository.query(
+      `
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_id, name, slug, 1 AS depth
+        FROM categories
+        WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+        UNION ALL
+        SELECT c.id, c.parent_id, c.name, c.slug, a.depth + 1
+        FROM categories c
+        INNER JOIN ancestors a ON c.id = a.parent_id
+        WHERE c.deleted_at IS NULL AND c.tenant_id = $2
+      )
+      SELECT id, parent_id AS "parentId", name, slug
+      FROM ancestors
+      ORDER BY depth DESC
+      `,
+      [parentId, tenantId],
+    );
+  }
+
   async create(
     dto: CreateProductDto,
     tenantId: string,
@@ -249,10 +280,15 @@ export class ProductsService {
     if (!rows.length) throw new ProductNotFoundException(id);
 
     const r = rows[0];
-    const images = await this.imageRepository.find({
-      where: { productId: r.id as string, deletedAt: IsNull() },
-      order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
-    });
+    const [images, ancestors] = await Promise.all([
+      this.imageRepository.find({
+        where: { productId: r.id as string, deletedAt: IsNull() },
+        order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
+      }),
+      r.cat_parentId
+        ? this.getCategoryAncestors(r.cat_parentId as string, tenantId)
+        : Promise.resolve([]),
+    ]);
 
     return {
       id: r.id,
@@ -270,6 +306,7 @@ export class ProductsService {
             slug: r.cat_slug,
           }
         : null,
+      ancestors,
       images,
     };
   }
