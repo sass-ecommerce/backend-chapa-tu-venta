@@ -10,6 +10,9 @@ import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { PresignedUrlGenerationException } from './exceptions/storage.exceptions';
 import { StorageFolder } from './dto/presigned-upload.dto';
+import { CacheService } from '../common/helpers/cache.service';
+
+const S3_VIEW_URL_CACHE_RESOURCE = 's3:view-url';
 
 @Injectable()
 export class S3Service {
@@ -18,7 +21,10 @@ export class S3Service {
   private readonly uploadExpiresIn: number;
   private readonly downloadExpiresIn: number;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly cacheService: CacheService,
+  ) {
     this.client = new S3Client({
       region: configService.get<string>('aws.region'),
     });
@@ -146,6 +152,11 @@ export class S3Service {
   }
 
   async generateViewUrl(key: string): Promise<{ viewUrl: string }> {
+    const cached = await this.cacheService.get<{ viewUrl: string }>(
+      `${S3_VIEW_URL_CACHE_RESOURCE}:${key}`,
+    );
+    if (cached) return cached;
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucket,
@@ -157,7 +168,13 @@ export class S3Service {
         expiresIn: this.downloadExpiresIn,
       });
 
-      return { viewUrl };
+      const result = { viewUrl };
+      await this.cacheService.set(
+        `${S3_VIEW_URL_CACHE_RESOURCE}:${key}`,
+        result,
+        this.downloadExpiresIn * 1000,
+      );
+      return result;
     } catch {
       throw new PresignedUrlGenerationException();
     }
