@@ -249,6 +249,11 @@ export class ProductsService {
     if (!rows.length) throw new ProductNotFoundException(id);
 
     const r = rows[0];
+    const images = await this.imageRepository.find({
+      where: { productId: r.id as string, deletedAt: IsNull() },
+      order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
+    });
+
     return {
       id: r.id,
       tenantId: r.tenantId,
@@ -265,6 +270,7 @@ export class ProductsService {
             slug: r.cat_slug,
           }
         : null,
+      images,
     };
   }
 
