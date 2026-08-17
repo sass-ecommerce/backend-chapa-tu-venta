@@ -22,6 +22,7 @@ import { CacheService } from '../common/helpers/cache.service';
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
 const PRODUCTS_CACHE_RESOURCE = 'products';
 const PRODUCTS_LIST_CACHE_TTL_MS = 60_000;
+const PRODUCT_DETAIL_CACHE_TTL_MS = 60_000;
 
 @Injectable()
 export class ProductsService {
@@ -69,11 +70,12 @@ export class ProductsService {
   private async validateCategory(
     categoryId: string,
     tenantId: string,
-  ): Promise<void> {
+  ): Promise<Category> {
     const category = await this.categoryRepository.findOne({
       where: { id: categoryId, tenantId, deletedAt: IsNull() },
     });
     if (!category) throw new ProductCategoryMismatchException(categoryId);
+    return category;
   }
 
   /**
@@ -111,7 +113,7 @@ export class ProductsService {
     dto: CreateProductDto,
     tenantId: string,
   ): Promise<{ id: string }> {
-    await this.validateCategory(dto.categoryId, tenantId);
+    const category = await this.validateCategory(dto.categoryId, tenantId);
 
     const product = this.productRepository.create({
       tenantId,
@@ -124,6 +126,10 @@ export class ProductsService {
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
 
+    const categoryAncestors = category.parentId
+      ? await this.getCategoryAncestors(category.parentId, tenantId)
+      : [];
+
     await this.eventBridgeService.publish(
       PRODUCT_EVENT_SOURCE,
       'product.created',
@@ -131,6 +137,7 @@ export class ProductsService {
         productId: saved.id,
         tenantId: saved.tenantId,
         categoryId: saved.categoryId,
+        category: categoryAncestors,
         name: saved.name,
         basePrice: saved.basePrice,
         isActive: saved.isActive,
@@ -256,6 +263,10 @@ export class ProductsService {
   }
 
   async findOne(id: string, tenantId: string): Promise<object> {
+    const cacheKey = `${PRODUCTS_CACHE_RESOURCE}:detail:${tenantId}:${id}`;
+    const cached = await this.cacheService.get<object>(cacheKey);
+    if (cached) return cached;
+
     const rows = await this.productRepository.query(
       `
       SELECT
@@ -290,7 +301,7 @@ export class ProductsService {
         : Promise.resolve([]),
     ]);
 
-    return {
+    const result = {
       id: r.id,
       tenantId: r.tenantId,
       categoryId: r.categoryId,
@@ -309,6 +320,8 @@ export class ProductsService {
       ancestors,
       images,
     };
+    await this.cacheService.set(cacheKey, result, PRODUCT_DETAIL_CACHE_TTL_MS);
+    return result;
   }
 
   async update(
