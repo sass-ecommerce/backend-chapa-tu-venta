@@ -12,6 +12,7 @@ import { PresignedUploadDto } from './dto/presigned-upload.dto';
 import { PresignedViewDto } from './dto/presigned-view.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CognitoUser } from '../auth/interfaces/cognito-user.interface';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @Controller('storage')
 @UsePipes(
@@ -46,6 +47,7 @@ export class StorageController {
   }
 
   @Get('presigned-view')
+  @Public()
   async getViewUrl(@Query() dto: PresignedViewDto) {
     const { viewUrl } = await this.s3Service.generateViewUrl(dto.key);
     return {
