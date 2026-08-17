@@ -113,7 +113,7 @@ export class ProductsService {
     dto: CreateProductDto,
     tenantId: string,
   ): Promise<{ id: string }> {
-    const category = await this.validateCategory(dto.categoryId, tenantId);
+    await this.validateCategory(dto.categoryId, tenantId);
 
     const product = this.productRepository.create({
       tenantId,
@@ -126,9 +126,10 @@ export class ProductsService {
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
 
-    const categoryAncestors = category.parentId
-      ? await this.getCategoryAncestors(category.parentId, tenantId)
-      : [];
+    const categoryTrace = await this.getCategoryAncestors(
+      dto.categoryId,
+      tenantId,
+    );
 
     await this.eventBridgeService.publish(
       PRODUCT_EVENT_SOURCE,
@@ -137,7 +138,7 @@ export class ProductsService {
         productId: saved.id,
         tenantId: saved.tenantId,
         categoryId: saved.categoryId,
-        category: categoryAncestors,
+        category: categoryTrace,
         name: saved.name,
         basePrice: saved.basePrice,
         isActive: saved.isActive,
