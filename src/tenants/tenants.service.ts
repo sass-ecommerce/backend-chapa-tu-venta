@@ -9,10 +9,12 @@ import { CreateTenantDto } from './dto/create-tenant.dto';
 import {
   TenantAdminRoleNotFoundException,
   TenantDomainAlreadyExistsException,
+  TenantNotFoundException,
   TenantOwnerNotFoundException,
 } from './exceptions/tenant.exceptions';
 import { DynamoService } from '../users/dynamo.service';
 import { CognitoAdminService } from '../auth/cognito-admin.service';
+import { CacheService } from '../common/helpers/cache.service';
 
 export interface OnboardingStatus {
   createTenant: {
@@ -20,6 +22,9 @@ export interface OnboardingStatus {
     tenant: Pick<Tenant, 'id' | 'name' | 'domain' | 'createdAt'> | null;
   };
 }
+
+const TENANTS_CACHE_RESOURCE = 'tenants';
+const TENANT_BY_DOMAIN_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class TenantsService {
@@ -36,6 +41,7 @@ export class TenantsService {
     private readonly userRepository: Repository<User>,
     private readonly dynamoService: DynamoService,
     private readonly cognitoAdminService: CognitoAdminService,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(dto: CreateTenantDto, userId: string): Promise<Tenant> {
@@ -80,6 +86,20 @@ export class TenantsService {
     await this.cognitoAdminService.setTenantId(user.sub!, tenant.id);
 
     this.logger.log(`Tenant created: ${tenant.id} by user: ${user.id}`);
+    return tenant;
+  }
+
+  async findByDomain(domain: string): Promise<Tenant> {
+    const cacheKey = `${TENANTS_CACHE_RESOURCE}:by-domain:${domain}`;
+    const cached = await this.cacheService.get<Tenant>(cacheKey);
+    if (cached) return cached;
+
+    const tenant = await this.tenantRepository.findOne({
+      where: { domain, deletedAt: IsNull() },
+    });
+    if (!tenant) throw new TenantNotFoundException(domain);
+
+    await this.cacheService.set(cacheKey, tenant, TENANT_BY_DOMAIN_CACHE_TTL_MS);
     return tenant;
   }
 
