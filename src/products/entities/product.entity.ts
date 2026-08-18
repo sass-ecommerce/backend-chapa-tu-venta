@@ -38,6 +38,9 @@ export class Product {
   @Column('boolean', { name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column('jsonb', { nullable: false, default: '{}' })
+  attributes: Record<string, any>;
+
   @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 

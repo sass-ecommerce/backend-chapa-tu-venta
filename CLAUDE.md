@@ -49,6 +49,19 @@ NestJS 11 REST API with dual-database architecture: **PostgreSQL** (TypeORM) for
 - PostgreSQL entities live in `schema: 'public'` (set on each `@Entity`). `synchronize: false` — migrations are manual.
 - MongoDB is used only for audit logs via `UserLog` Mongoose schema.
 
+### Database migrations
+
+Manual SQL migrations live in `migrations/`. `0001_init_schema.sql` is the baseline (full schema as of the production cutover) — it is **closed** and must never be edited again.
+
+Every future database change, no matter how small, is a **new file**:
+
+- Name it `NNNN_short_description.sql`, where `NNNN` is the next zero-padded sequence number after the highest one currently in `migrations/` (e.g. `0002_add_orders_table.sql`).
+- One logical change per file (one new table, one column addition, one index, etc.) — don't bundle unrelated changes.
+- Wrap the file in `BEGIN; ... COMMIT;`.
+- Prefer idempotent DDL where practical (`IF NOT EXISTS`, `ON CONFLICT DO NOTHING`) so a migration can be safely re-run.
+- Update the corresponding TypeORM entity in the same change/PR as the migration that alters its table, so entities and schema never drift.
+- Never edit or delete a migration file once it has been applied to any shared environment (staging/production) — ship a corrective migration instead.
+
 ### Required Environment Variables
 
 ```
