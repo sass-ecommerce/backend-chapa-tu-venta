@@ -56,7 +56,7 @@ import { EventsModule } from './events/events.module';
         url: configService.get<string>('database.postgres.url'),
         autoLoadEntities: true,
         logger: 'advanced-console',
-        synchronize: false,
+        synchronize: true,
         logging: ['error', 'warn', 'query'],
       }),
     }),
