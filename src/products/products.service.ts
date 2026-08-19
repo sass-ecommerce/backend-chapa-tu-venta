@@ -282,6 +282,7 @@ export class ProductsService {
         p.description,
         p.base_price   AS "basePrice",
         p.is_active    AS "isActive",
+        p.attributes,
         c.id           AS "cat_id",
         c.parent_id    AS "cat_parentId",
         c.name         AS "cat_name",
@@ -314,6 +315,7 @@ export class ProductsService {
       description: r.description,
       basePrice: r.basePrice,
       isActive: r.isActive,
+      attributes: r.attributes,
       category: r.cat_id
         ? {
             id: r.cat_id,
