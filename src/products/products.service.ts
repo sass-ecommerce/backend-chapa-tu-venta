@@ -113,6 +113,8 @@ export class ProductsService {
     dto: CreateProductDto,
     tenantId: string,
   ): Promise<{ id: string }> {
+    console.log('Creating product with DTO:', dto, 'for tenant:', tenantId);
+
     await this.validateCategory(dto.categoryId, tenantId);
 
     const product = this.productRepository.create({
