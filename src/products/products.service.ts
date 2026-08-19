@@ -297,13 +297,13 @@ export class ProductsService {
     if (!rows.length) throw new ProductNotFoundException(id);
 
     const r = rows[0];
-    const [images, ancestors] = await Promise.all([
+    const [images, categories] = await Promise.all([
       this.imageRepository.find({
         where: { productId: r.id as string, deletedAt: IsNull() },
         order: { isPrimary: 'DESC', sortOrder: 'ASC', createdAt: 'ASC' },
       }),
-      r.cat_parentId
-        ? this.getCategoryAncestors(r.cat_parentId as string, tenantId)
+      r.cat_id
+        ? this.getCategoryAncestors(r.cat_id as string, tenantId)
         : Promise.resolve([]),
     ]);
 
@@ -324,7 +324,7 @@ export class ProductsService {
             slug: r.cat_slug,
           }
         : null,
-      ancestors,
+      categories,
       images,
     };
     await this.cacheService.set(cacheKey, result, PRODUCT_DETAIL_CACHE_TTL_MS);
