@@ -1,14 +1,29 @@
 import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsNotEmpty,
   IsNumber,
-  IsObject,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
+  ValidateNested,
 } from 'class-validator';
+
+export class ProductAttributeDto {
+  @IsString()
+  @IsNotEmpty()
+  attributeKey: string;
+
+  @IsString()
+  @IsNotEmpty()
+  attributeLabel: string;
+
+  @IsString()
+  @IsNotEmpty()
+  value: string;
+}
 
 export class CreateProductDto {
   @IsUUID()
@@ -31,7 +46,9 @@ export class CreateProductDto {
   @IsOptional()
   isActive?: boolean;
 
-  @IsObject()
+  @IsArray()
   @IsOptional()
-  attributes?: Record<string, any>;
+  @ValidateNested({ each: true })
+  @Type(() => ProductAttributeDto)
+  attributes?: ProductAttributeDto[];
 }

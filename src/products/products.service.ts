@@ -122,7 +122,7 @@ export class ProductsService {
       description: dto.description ?? null,
       basePrice: dto.basePrice,
       isActive: dto.isActive ?? true,
-      attributes: dto.attributes ?? {},
+      attributes: dto.attributes ?? [],
     });
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
