@@ -59,4 +59,23 @@ export class CacheService {
   ): Promise<void> {
     await this.set(this.buildListKey(resource, scopeId, params), value, ttl);
   }
+
+  /**
+   * Invalida todas las variantes cacheadas de un listado (una por cada
+   * combinación de filtros/paginación) para un recurso y scope dados,
+   * recorriendo las keys de cada store vía el iterator de Keyv.
+   */
+  async deleteListByScope(resource: string, scopeId: string): Promise<void> {
+    const prefix = `${resource}:list:${scopeId}:`;
+
+    for (const store of this.cacheManager.stores) {
+      if (!store.iterator) continue;
+
+      for await (const [key] of store.iterator(undefined)) {
+        if (typeof key === 'string' && key.startsWith(prefix)) {
+          await this.cacheManager.del(key);
+        }
+      }
+    }
+  }
 }

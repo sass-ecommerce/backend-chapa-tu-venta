@@ -14,8 +14,9 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { ProductsService } from './products.service';
+import { ProductsService, PRODUCTS_CACHE_RESOURCE } from './products.service';
 import { ProductImagesService } from './product-images.service';
+import { CacheService } from '../common/helpers/cache.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
@@ -40,6 +41,7 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly productImagesService: ProductImagesService,
+    private readonly cacheService: CacheService,
   ) {}
 
   @Post()
@@ -160,6 +162,10 @@ export class ProductsController {
   @Public()
   async addImage(@Body() dto: AddProductImageDto) {
     const image = await this.productImagesService.addImage(dto);
+    await this.cacheService.deleteListByScope(
+      PRODUCTS_CACHE_RESOURCE,
+      dto.tenantId,
+    );
     return {
       code: 201,
       message: 'Image added successfully',

@@ -24,7 +24,7 @@ import { CacheService } from '../common/helpers/cache.service';
 import { ProductImagesService } from './product-images.service';
 
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
-const PRODUCTS_CACHE_RESOURCE = 'products';
+export const PRODUCTS_CACHE_RESOURCE = 'products';
 const PRODUCTS_LIST_CACHE_TTL_MS = 60_000;
 const PRODUCT_DETAIL_CACHE_TTL_MS = 60_000;
 

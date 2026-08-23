@@ -99,7 +99,11 @@ export class TenantsService {
     });
     if (!tenant) throw new TenantNotFoundException(domain);
 
-    await this.cacheService.set(cacheKey, tenant, TENANT_BY_DOMAIN_CACHE_TTL_MS);
+    await this.cacheService.set(
+      cacheKey,
+      tenant,
+      TENANT_BY_DOMAIN_CACHE_TTL_MS,
+    );
     return tenant;
   }
 
