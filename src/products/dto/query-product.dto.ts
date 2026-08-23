@@ -1,12 +1,18 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
 } from 'class-validator';
+
+export enum ProductOrderDirection {
+  ASC = 'ASC',
+  DESC = 'DESC',
+}
 
 export class QueryProductDto {
   @IsUUID()
@@ -37,4 +43,11 @@ export class QueryProductDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 10;
+
+  @IsIn([ProductOrderDirection.ASC, ProductOrderDirection.DESC])
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
+  order?: ProductOrderDirection = ProductOrderDirection.DESC;
 }

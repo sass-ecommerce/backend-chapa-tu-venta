@@ -9,7 +9,10 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
-import { QueryProductDto } from './dto/query-product.dto';
+import {
+  ProductOrderDirection,
+  QueryProductDto,
+} from './dto/query-product.dto';
 import {
   ProductNotFoundException,
   ProductVariantNotFoundException,
@@ -158,8 +161,15 @@ export class ProductsService {
     query: QueryProductDto,
     tenantId: string,
   ): Promise<{ data: object[]; meta: object }> {
-    const { categoryId, name, isActive, page = 1, limit = 10 } = query;
-    const cacheParams = { categoryId, name, isActive, page, limit };
+    const {
+      categoryId,
+      name,
+      isActive,
+      page = 1,
+      limit = 10,
+      order = ProductOrderDirection.DESC,
+    } = query;
+    const cacheParams = { categoryId, name, isActive, page, limit, order };
 
     const cached = await this.cacheService.getList<{
       data: object[];
@@ -212,7 +222,7 @@ export class ProductsService {
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id AND c.deleted_at IS NULL
         WHERE ${where}
-        ORDER BY p.created_at DESC
+        ORDER BY p.created_at ${order}
         LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `,
         [...params, limit, (page - 1) * limit],
