@@ -9,6 +9,7 @@ import {
   ProductImageNotFoundException,
 } from './exceptions/product.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
+import { S3Service } from '../storage/s3.service';
 
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
 
@@ -22,7 +23,24 @@ export class ProductImagesService {
     @InjectRepository(ProductImage)
     private readonly imageRepository: Repository<ProductImage>,
     private readonly eventBridgeService: EventBridgeService,
+    private readonly s3Service: S3Service,
   ) {}
+
+  /**
+   * Adjunta la URL prefirmada de S3 a cada imagen. `S3Service.generateViewUrl`
+   * ya cachea cada URL en Redis por s3Key (TTL = s3.downloadUrlExpiresIn), así
+   * que aquí solo se orquesta la resolución en paralelo por lista de imágenes.
+   */
+  async attachImageUrls<T extends ProductImage>(
+    images: T[],
+  ): Promise<(T & { url: string })[]> {
+    return Promise.all(
+      images.map(async (image) => {
+        const { viewUrl } = await this.s3Service.generateViewUrl(image.s3Key);
+        return { ...image, url: viewUrl };
+      }),
+    );
+  }
 
   async addImage(dto: AddProductImageDto): Promise<ProductImage> {
     const product = await this.productRepository.findOne({

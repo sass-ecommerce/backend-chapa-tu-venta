@@ -18,6 +18,7 @@ import {
 } from './exceptions/product.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
 import { CacheService } from '../common/helpers/cache.service';
+import { ProductImagesService } from './product-images.service';
 
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
 const PRODUCTS_CACHE_RESOURCE = 'products';
@@ -39,6 +40,7 @@ export class ProductsService {
     private readonly categoryRepository: Repository<Category>,
     private readonly eventBridgeService: EventBridgeService,
     private readonly cacheService: CacheService,
+    private readonly productImagesService: ProductImagesService,
   ) {}
 
   /**
@@ -225,8 +227,15 @@ export class ProductsService {
         })
       : [];
 
-    const imagesByProductId = new Map<string, ProductImage[]>();
-    for (const image of images) {
+    const imagesWithUrls = images.length
+      ? await this.productImagesService.attachImageUrls(images)
+      : [];
+
+    const imagesByProductId = new Map<
+      string,
+      (typeof imagesWithUrls)[number][]
+    >();
+    for (const image of imagesWithUrls) {
       const list = imagesByProductId.get(image.productId) ?? [];
       list.push(image);
       imagesByProductId.set(image.productId, list);
@@ -307,6 +316,10 @@ export class ProductsService {
         : Promise.resolve([]),
     ]);
 
+    const imagesWithUrls = images.length
+      ? await this.productImagesService.attachImageUrls(images)
+      : [];
+
     const result = {
       id: r.id,
       tenantId: r.tenantId,
@@ -325,7 +338,7 @@ export class ProductsService {
           }
         : null,
       categories,
-      images,
+      images: imagesWithUrls,
     };
     await this.cacheService.set(cacheKey, result, PRODUCT_DETAIL_CACHE_TTL_MS);
     return result;
