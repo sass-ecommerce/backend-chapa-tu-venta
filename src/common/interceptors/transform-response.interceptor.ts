@@ -23,7 +23,7 @@ export class TransformResponseInterceptor implements NestInterceptor<
           code = 1,
           message = 'Results',
           data: dataValue = null,
-        } = data as ApiSuccessResponse;
+        } = (data ?? {}) as ApiSuccessResponse;
 
         return { code, message, data: dataValue };
       }),

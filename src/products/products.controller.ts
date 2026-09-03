@@ -150,12 +150,17 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async remove(
     @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     await this.productsService.softDelete(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Product deleted successfully',
+      data: null,
+    };
   }
 
   @Post('images')
@@ -174,12 +179,17 @@ export class ProductsController {
   }
 
   @Delete('images/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   async removeImage(
     @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     await this.productImagesService.removeImage(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Image deleted successfully',
+      data: null,
+    };
   }
 
   @Get(':id/images')
