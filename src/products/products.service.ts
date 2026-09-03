@@ -436,6 +436,17 @@ export class ProductsService {
 
     await this.invalidateProductCache(id, tenantId);
 
+    await this.eventBridgeService.publish(
+      PRODUCT_EVENT_SOURCE,
+      'product.deleted',
+      {
+        productId: product.id,
+        tenantId: product.tenantId,
+        categoryId: product.categoryId,
+        deletedAt: product.deletedAt,
+      },
+    );
+
     this.logger.log(`Product soft-deleted: ${id}`);
   }
 
