@@ -364,8 +364,11 @@ export class ProductsService {
     });
     if (!product) throw new ProductNotFoundException(id);
 
-    if (dto.categoryId && dto.categoryId !== product.categoryId) {
-      await this.validateCategory(dto.categoryId, product.tenantId);
+    const categoryChanged =
+      !!dto.categoryId && dto.categoryId !== product.categoryId;
+
+    if (categoryChanged) {
+      await this.validateCategory(dto.categoryId!, product.tenantId);
     }
 
     Object.assign(product, dto);
@@ -373,6 +376,26 @@ export class ProductsService {
     await this.productRepository.save(product);
 
     await this.invalidateProductCache(id, tenantId);
+
+    const categoryTrace = categoryChanged
+      ? await this.getCategoryAncestors(product.categoryId, tenantId)
+      : undefined;
+
+    await this.eventBridgeService.publish(
+      PRODUCT_EVENT_SOURCE,
+      'product.updated',
+      {
+        productId: product.id,
+        tenantId: product.tenantId,
+        categoryId: product.categoryId,
+        ...(categoryTrace ? { category: categoryTrace } : {}),
+        name: product.name,
+        description: product.description,
+        basePrice: product.basePrice,
+        isActive: product.isActive,
+        updatedAt: product.updatedAt,
+      },
+    );
 
     this.logger.log(`Product updated: ${id}`);
     return { id };
