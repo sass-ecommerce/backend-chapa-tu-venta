@@ -4,6 +4,11 @@ import type { Cache } from 'cache-manager';
 
 type ListParams = Record<string, string | number | boolean | undefined>;
 
+type RedisScanClient = {
+  scanIterator(options: { MATCH: string; TYPE: string }): AsyncIterable<string>;
+  del(keys: string[]): Promise<number>;
+};
+
 /**
  * Generic Redis-backed cache helper, usable by any module. Besides raw
  * read/write/delete, it offers a list-cache pattern for endpoints that
@@ -62,19 +67,32 @@ export class CacheService {
 
   /**
    * Invalida todas las variantes cacheadas de un listado (una por cada
-   * combinación de filtros/paginación) para un recurso y scope dados,
-   * recorriendo las keys de cada store vía el iterator de Keyv.
+   * combinación de filtros/paginación) para un recurso y scope dados.
+   *
+   * Usa SCAN + DEL directamente sobre el cliente Redis en vez del
+   * `iterator()` de Keyv: ese iterator hace MGET sobre las keys que
+   * matchean y deserializa cada valor, lo que revienta con
+   * "Cannot read properties of undefined (reading 'expires')" si una key
+   * expira entre el SCAN y el MGET. Acá solo nos interesan los nombres de
+   * las keys, no sus valores, así que evitamos esa deserialización.
    */
   async deleteListByScope(resource: string, scopeId: string): Promise<void> {
     const prefix = `${resource}:list:${scopeId}:`;
 
     for (const store of this.cacheManager.stores) {
-      if (!store.iterator) continue;
+      const client = (store.store as { client?: RedisScanClient })?.client;
+      if (!client || typeof client.scanIterator !== 'function') continue;
 
-      for await (const [key] of store.iterator(undefined)) {
-        if (typeof key === 'string' && key.startsWith(prefix)) {
-          await this.cacheManager.del(key);
-        }
+      const keys: string[] = [];
+      for await (const key of client.scanIterator({
+        MATCH: `${prefix}*`,
+        TYPE: 'string',
+      })) {
+        keys.push(key);
+      }
+
+      if (keys.length) {
+        await client.del(keys);
       }
     }
   }
