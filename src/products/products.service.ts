@@ -372,6 +372,8 @@ export class ProductsService {
     product.updatedAt = new Date();
     await this.productRepository.save(product);
 
+    await this.invalidateProductCache(id, tenantId);
+
     this.logger.log(`Product updated: ${id}`);
     return { id };
   }
@@ -431,7 +433,22 @@ export class ProductsService {
 
     product.deletedAt = new Date();
     await this.productRepository.save(product);
+
+    await this.invalidateProductCache(id, tenantId);
+
     this.logger.log(`Product soft-deleted: ${id}`);
+  }
+
+  private async invalidateProductCache(
+    id: string,
+    tenantId: string,
+  ): Promise<void> {
+    await Promise.all([
+      this.cacheService.deleteListByScope(PRODUCTS_CACHE_RESOURCE, tenantId),
+      this.cacheService.delete(
+        `${PRODUCTS_CACHE_RESOURCE}:detail:${tenantId}:${id}`,
+      ),
+    ]);
   }
 
   async updateVariant(
