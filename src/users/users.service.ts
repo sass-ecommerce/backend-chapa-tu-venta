@@ -26,47 +26,47 @@ export class UsersService {
     const attrs = dto.request.userAttributes;
     const sub = attrs['sub'];
     const email = attrs['email'];
-    const firstName = attrs['given_name'] ?? null;
-    const lastName = attrs['family_name'] ?? null;
+    const { firstName, lastName } = this.resolveName(attrs);
+    const provider = this.resolveProvider(dto.triggerSource);
     const now = new Date();
 
     this.logger.log(
-      `Post confirmation for sub=${sub} email=${email} source=${dto.triggerSource}`,
+      `Cognito sync for sub=${sub} email=${email} provider=${provider} source=${dto.triggerSource}`,
     );
 
-    // const existing = await this.usersRepository.findOne({ where: { email } });
+    const existing = await this.usersRepository.findOne({ where: { email } });
 
-    // if (existing) {
-    //   this.logger.log(
-    //     `User email=${email} found (id=${existing.id}), updating sub`,
-    //   );
+    if (existing) {
+      this.logger.log(
+        `User email=${email} found (id=${existing.id}), updating sub via provider=${provider}`,
+      );
 
-    //   existing.sub = sub;
-    //   existing.firstName = firstName;
-    //   existing.lastName = lastName;
-    //   existing.isActive = true;
-    //   existing.updatedAt = now;
+      existing.sub = sub;
+      existing.firstName = firstName;
+      existing.lastName = lastName;
+      existing.isActive = true;
+      existing.updatedAt = now;
 
-    //   const updated = await this.usersRepository.save(existing);
+      const updated = await this.usersRepository.save(existing);
 
-    //   await Promise.all([
-    //     this.dynamoService.putUser({
-    //       sub,
-    //       email: updated.email,
-    //       firstName: updated.firstName,
-    //       lastName: updated.lastName,
-    //       isActive: updated.isActive,
-    //       id: updated.id,
-    //       tenants: [],
-    //       updatedAt: now.toISOString(),
-    //     }),
-    //     this.cognitoAdminService.setDbId(sub, updated.id),
-    //   ]);
+      await Promise.all([
+        this.dynamoService.putUser({
+          sub,
+          email: updated.email,
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          isActive: updated.isActive,
+          id: updated.id,
+          tenants: [],
+          updatedAt: now.toISOString(),
+        }),
+        this.cognitoAdminService.setDbId(sub, updated.id),
+      ]);
 
-    //   return updated;
-    // }
+      return updated;
+    }
 
-    this.logger.log(`Creating new user sub=${sub}`);
+    this.logger.log(`Creating new user sub=${sub} provider=${provider}`);
     const user = this.usersRepository.create({
       sub,
       email,
@@ -91,6 +91,34 @@ export class UsersService {
     ]);
 
     return saved;
+  }
+
+  // Post Confirmation only ever fires for native sign-up/forgot-password;
+  // Google sign-ins land here exclusively via the Post Authentication trigger.
+  private resolveProvider(triggerSource: string): 'google' | 'native' {
+    return triggerSource === 'PostAuthentication_Authentication'
+      ? 'google'
+      : 'native';
+  }
+
+  private resolveName(attrs: Record<string, string>): {
+    firstName: string | null;
+    lastName: string | null;
+  } {
+    const givenName = attrs['given_name'];
+    const familyName = attrs['family_name'];
+
+    if (givenName || familyName) {
+      return { firstName: givenName ?? null, lastName: familyName ?? null };
+    }
+
+    const name = attrs['name']?.trim();
+    if (!name) {
+      return { firstName: null, lastName: null };
+    }
+
+    const [firstName, ...rest] = name.split(/\s+/);
+    return { firstName, lastName: rest.length ? rest.join(' ') : null };
   }
 
   async bulkDeleteByEmails(emails: string[]): Promise<{

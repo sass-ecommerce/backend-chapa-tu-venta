@@ -14,6 +14,7 @@ export class CognitoPostConfirmationDto {
   @IsIn([
     'PostConfirmation_ConfirmSignUp',
     'PostConfirmation_ConfirmForgotPassword',
+    'PostAuthentication_Authentication',
   ])
   triggerSource: string;
 
