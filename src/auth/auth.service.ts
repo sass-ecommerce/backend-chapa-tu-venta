@@ -50,6 +50,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    this.logger.log(`Sign up attempt for email: ${dto.email}`);
     try {
       const result = await this.cognitoClient.send(
         new SignUpCommand({
@@ -65,12 +66,19 @@ export class AuthService {
         }),
       );
 
+      this.logger.log(
+        `Sign up succeeded for email: ${dto.email} (userSub: ${result.UserSub})`,
+      );
+
       return {
         userSub: result.UserSub,
         message: 'Verification code sent to your email',
       };
     } catch (error) {
-      this.logger.error('Error registering user', error);
+      this.logger.error(
+        `Sign up failed for email: ${dto.email} - ${error.message}`,
+        error.stack,
+      );
       if (error instanceof UsernameExistsException) {
         throw new UserAlreadyExistsException(dto.email);
       }
@@ -124,6 +132,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    this.logger.log(`Sign in attempt for email: ${dto.email}`);
     try {
       const result = await this.cognitoClient.send(
         new InitiateAuthCommand({
@@ -137,6 +146,9 @@ export class AuthService {
       );
 
       const tokens = result.AuthenticationResult!;
+
+      this.logger.log(`Sign in succeeded for email: ${dto.email}`);
+
       return {
         accessToken: tokens.AccessToken!,
         refreshToken: tokens.RefreshToken!,
@@ -144,7 +156,10 @@ export class AuthService {
         tokenType: tokens.TokenType!,
       };
     } catch (error) {
-      this.logger.error('Error logging in user', error);
+      this.logger.error(
+        `Sign in failed for email: ${dto.email} - ${error.message}`,
+        error.stack,
+      );
       if (error instanceof NotAuthorizedException) {
         throw new InvalidCredentialsException();
       }
