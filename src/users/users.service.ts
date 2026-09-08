@@ -167,6 +167,21 @@ export class UsersService {
     return { deleted, failed };
   }
 
+  async findMe(
+    cognitoSub: string,
+  ): Promise<Pick<User, 'email' | 'firstName' | 'lastName'>> {
+    const user = await this.usersRepository.findOne({
+      where: { sub: cognitoSub },
+      select: ['email', 'firstName', 'lastName'],
+    });
+
+    if (!user) {
+      throw new UserNotFoundException(cognitoSub);
+    }
+
+    return user;
+  }
+
   async deleteMe(cognitoSub: string): Promise<void> {
     const user = await this.usersRepository.findOne({
       where: { sub: cognitoSub },

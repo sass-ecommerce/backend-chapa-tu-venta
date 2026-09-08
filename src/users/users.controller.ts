@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -36,6 +37,17 @@ export class UsersController {
       code: 201,
       message: 'User synced successfully',
       data: user,
+    };
+  }
+
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  async getMe(@CurrentUser() user: CognitoUser) {
+    const data = await this.usersService.findMe(user.sub);
+    return {
+      code: 200,
+      message: 'User retrieved successfully',
+      data,
     };
   }
 
