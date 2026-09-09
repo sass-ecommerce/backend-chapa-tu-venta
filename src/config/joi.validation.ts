@@ -1,29 +1,51 @@
 import * as Joi from 'joi';
 
 export const ValidationSchema = Joi.object({
-  // Application Configurations
+  // Application
   PORT: Joi.number().default(3000).description('HTTP server port'),
-  // POSTGRESQL Configurations
-  POSTGRES_PORT: Joi.number().required().description('HTTP server port'),
-  POSTGRES_HOST: Joi.string().required().description('Database host'),
-  POSTGRES_USER: Joi.string().required().description('Database username'),
-  POSTGRES_PASSWORD: Joi.string().required().description('Database password'),
-  POSTGRES_DB: Joi.string().required().description('Database name'),
-  POSTGRES_SCHEMA: Joi.string().required().description('Database schema'),
-
-  // MongoDB Configurations
-  MONGO_URI: Joi.string().required().description('MongoDB connection URI'),
-
-  // Node Environment
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
     .description('Node environment'),
 
-  // Clerk Authentication
-  CLERK_SECRET_KEY: Joi.string()
+  // PostgreSQL
+  POSTGRES_URL: Joi.string()
     .required()
-    .description('Clerk secret key for backend authentication'),
-  CLERK_PUBLISHABLE_KEY: Joi.string()
+    .description('PostgreSQL connection string'),
+
+  // AWS
+  AWS_REGION: Joi.string().default('us-east-1').description('AWS region'),
+  AWS_ACCESS_KEY_ID: Joi.string().optional().description('AWS access key ID'),
+  AWS_SECRET_ACCESS_KEY: Joi.string()
+    .optional()
+    .description('AWS secret access key'),
+
+  // AWS Cognito
+  AWS_COGNITO_USER_POOL_ID: Joi.string()
     .required()
-    .description('Clerk publishable key'),
+    .description('AWS Cognito User Pool ID (e.g. us-east-1_xxxxxxxxx)'),
+  AWS_COGNITO_CLIENT_ID: Joi.string()
+    .required()
+    .description('AWS Cognito App Client ID'),
+
+  // AWS DynamoDB
+  AWS_DYNAMODB_TABLE_NAME: Joi.string()
+    .required()
+    .description('DynamoDB table name for user-tenant replica'),
+
+  // AWS S3
+  AWS_S3_BUCKET_NAME: Joi.string().required().description('AWS S3 bucket name'),
+  AWS_S3_UPLOAD_URL_EXPIRES_IN: Joi.number()
+    .default(900)
+    .description('Presigned upload URL TTL in seconds'),
+  AWS_S3_DOWNLOAD_URL_EXPIRES_IN: Joi.number()
+    .default(3600)
+    .description('Presigned download URL TTL in seconds'),
+
+  // Redis
+  REDIS_PRIVATE_URL: Joi.string()
+    .required()
+    .description('Redis connection URL'),
+  REDIS_CACHE_TTL: Joi.number()
+    .default(300000)
+    .description('Default cache TTL in milliseconds'),
 });

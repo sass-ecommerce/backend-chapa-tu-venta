@@ -1,65 +1,32 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { Store } from '../../stores/entities/store.entity';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'users', schema: 'b2b' })
+@Entity({ name: 'users', schema: 'public' })
 export class User {
-  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid', { unique: true, default: () => 'gen_random_uuid()' })
-  slug: string;
+  @Column('uuid', { nullable: true, unique: true })
+  sub: string | null;
 
-  @Column('varchar', { name: 'first_name', nullable: true })
-  firstName: string;
-
-  @Column('varchar', { name: 'last_name', nullable: true })
-  lastName: string;
-
-  @Column('varchar', { name: 'external_auth_id', nullable: true })
-  externalAuthId: string;
-
-  @Column('varchar', { name: 'clerk_id', nullable: true })
-  clerkId: string;
-
-  @Column('varchar', { unique: true, nullable: false })
+  // Uniqueness enforced by partial index in migration: WHERE deleted_at IS NULL
+  @Column('varchar', { length: 255, nullable: false })
   email: string;
 
-  @Column('text', { name: 'image_url', nullable: true })
-  imageUrl: string;
+  @Column('varchar', { name: 'first_name', length: 100, nullable: true })
+  firstName: string | null;
 
-  @Column('boolean', { name: 'is_active', nullable: true, default: true })
+  @Column('varchar', { name: 'last_name', length: 100, nullable: true })
+  lastName: string | null;
+
+  @Column('boolean', { name: 'is_active', default: true })
   isActive: boolean;
 
-  @Column('varchar', { nullable: true })
-  role: string;
-
-  @Column('varchar', { name: 'auth_method', nullable: true })
-  authMethod: string;
-
-  @Column('varchar', { name: 'provider_user_id', nullable: true })
-  providerUserId: string;
-
-  @Column('bigint', { name: 'store_id', nullable: true })
-  storeId: number;
-
-  @Column('timestamptz', {
-    name: 'created_at',
-    nullable: true,
-    default: () => 'now()',
-  })
+  @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
-  @Column('timestamptz', { name: 'updated_at', nullable: true })
+  @Column('timestamptz', { name: 'updated_at', default: () => 'NOW()' })
   updatedAt: Date;
 
-  // Relations
-  @ManyToOne(() => Store, (store) => store.users, { nullable: true })
-  @JoinColumn({ name: 'store_id' })
-  store: Store;
+  @Column('timestamptz', { name: 'deleted_at', nullable: true })
+  deletedAt: Date | null;
 }

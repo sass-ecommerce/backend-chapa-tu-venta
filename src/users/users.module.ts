@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { UserLog, UserLogSchema } from './schema/user-log.schema';
-import { MongooseModule } from '@nestjs/mongoose';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+import { DynamoService } from './dynamo.service';
+import { DevOnlyGuard } from '../common/guards/dev-only.guard';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-    MongooseModule.forFeature([{ name: UserLog.name, schema: UserLogSchema }]),
-  ],
+  imports: [TypeOrmModule.forFeature([User])],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [UsersService, TypeOrmModule],
+  providers: [UsersService, DynamoService, DevOnlyGuard],
+  exports: [UsersService, DynamoService, TypeOrmModule],
 })
 export class UsersModule {}

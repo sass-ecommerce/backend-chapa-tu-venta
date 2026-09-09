@@ -1,185 +1,212 @@
-import {
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
-import { InjectModel } from '@nestjs/mongoose';
-import { UserLog } from './schema/user-log.schema';
-import { Model } from 'mongoose';
-import { StatusProcess } from './interface/status-process.interface';
-import { AuthService } from 'src/auth/auth.service';
+import { User } from './entities/user.entity';
+import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
+import { DynamoService } from './dynamo.service';
+import { CognitoAdminService } from '../auth/cognito-admin.service';
+import {
+  UserAlreadyDeletedException,
+  UserNotFoundException,
+} from './exceptions/user.exceptions';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
-    @InjectRepository(User) private usersRepository: Repository<User>,
-    @InjectModel(UserLog.name) private userLogModel: Model<UserLog>,
-    private authService: AuthService,
+    @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    private readonly dynamoService: DynamoService,
+    private readonly cognitoAdminService: CognitoAdminService,
   ) {}
 
-  /**
-   * Crea o actualiza el log de auditoría
-   */
-  private async createOrUpdateLog(
-    clerkId: string,
-    eventType: string,
-    createUserDto: CreateUserDto,
-    instance_id: string,
-  ) {
-    return await this.userLogModel.findOneAndUpdate(
-      { clerkId, eventType },
-      {
-        rawJson: createUserDto,
-        externalAuthId: instance_id,
-        statusProcess: StatusProcess.Pending,
-        $inc: { retryCount: 1 },
-        $setOnInsert: { createdAt: new Date() },
-      },
-      { upsert: true, new: true },
-    );
-  }
+  async upsertFromCognitoConfirmation(
+    dto: CognitoPostConfirmationDto,
+  ): Promise<User> {
+    const attrs = dto.request.userAttributes;
+    const sub = attrs['sub'];
+    const email = attrs['email'];
+    const { firstName, lastName } = this.resolveName(attrs);
+    const provider = this.resolveProvider(dto.triggerSource);
+    const now = new Date();
 
-  /**
-   * Maneja errores y lanza excepción
-   */
-  private handleError(error: any, clerkId: string, method: string) {
-    this.logger.error(
-      `[UsersController][${method}] User: id: ${clerkId} - error: ${error}`,
-    );
-    throw new InternalServerErrorException('Check server logs for details');
-  }
-
-  async create(createUserDto: CreateUserDto) {
-    const { data, instance_id, type } = createUserDto;
-
-    const log = await this.createOrUpdateLog(
-      data.id,
-      type,
-      createUserDto,
-      instance_id,
+    this.logger.log(
+      `Cognito sync for sub=${sub} email=${email} provider=${provider} source=${dto.triggerSource}`,
     );
 
-    try {
-      const externalAcount = data.external_accounts?.[0];
-      const emailAddress = data.email_addresses?.find(
-        (email) => email.id === data.primary_email_address_id,
-      )?.email_address;
+    const existing = await this.usersRepository.findOne({ where: { email } });
 
-      const userData = {
-        clerkId: data.id,
-        email: emailAddress?.toLowerCase().trim(),
-        firstName: data?.first_name,
-        lastName: data?.last_name,
-        imageUrl: data?.image_url,
-        externalAuthId: instance_id,
-        authMethod: externalAcount?.provider || 'email_password',
-        providerUserId: externalAcount?.provider_user_id,
-      };
-
-      await this.usersRepository.upsert(userData, ['clerkId']);
-      const result = await this.usersRepository.findOneBy({ clerkId: data.id });
-
-      await log.updateOne({
-        statusProcess: StatusProcess.Completed,
-        errorMessage: '',
-      });
-
-      if (result?.slug) {
-        await this.authService.updatePublicMetadata(userData.clerkId, {
-          user: { slug: result.slug },
-        });
-      }
-
+    if (existing) {
       this.logger.log(
-        `User created successfully - clerkId: ${data.id}, email: ${userData.email}`,
+        `User email=${email} found (id=${existing.id}), updating sub via provider=${provider}`,
       );
 
-      return { completed: true };
-    } catch (error) {
-      await log.updateOne({
-        statusProcess: StatusProcess.Error,
-        errorMessage: error.message,
-      });
+      existing.sub = sub;
+      existing.firstName = firstName;
+      existing.lastName = lastName;
+      existing.isActive = true;
+      existing.updatedAt = now;
 
-      this.handleError(error, data.id, 'create');
+      const updated = await this.usersRepository.save(existing);
 
-      throw new InternalServerErrorException('Check server logs for details');
+      await Promise.all([
+        this.dynamoService.putUser({
+          sub,
+          email: updated.email,
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          isActive: updated.isActive,
+          id: updated.id,
+          tenants: [],
+          updatedAt: now.toISOString(),
+        }),
+        this.cognitoAdminService.setDbId(sub, updated.id),
+      ]);
+
+      return updated;
     }
+
+    this.logger.log(`Creating new user sub=${sub} provider=${provider}`);
+    const user = this.usersRepository.create({
+      sub,
+      email,
+      firstName,
+      lastName,
+      isActive: true,
+    });
+    const saved = await this.usersRepository.save(user);
+
+    await Promise.all([
+      this.dynamoService.putUser({
+        sub,
+        email: saved.email,
+        firstName: saved.firstName,
+        lastName: saved.lastName,
+        isActive: saved.isActive,
+        id: saved.id,
+        tenants: [],
+        updatedAt: now.toISOString(),
+      }),
+      this.cognitoAdminService.setDbId(sub, saved.id),
+    ]);
+
+    return saved;
   }
 
-  async update(updateUserDto: CreateUserDto) {
-    const { data, instance_id, type } = updateUserDto;
+  // Post Confirmation only ever fires for native sign-up/forgot-password;
+  // Google sign-ins land here exclusively via the Post Authentication trigger.
+  private resolveProvider(triggerSource: string): 'google' | 'native' {
+    return triggerSource === 'PostAuthentication_Authentication'
+      ? 'google'
+      : 'native';
+  }
 
-    const log = await this.createOrUpdateLog(
-      data.id,
-      type,
-      updateUserDto,
-      instance_id,
+  private resolveName(attrs: Record<string, string>): {
+    firstName: string | null;
+    lastName: string | null;
+  } {
+    const givenName = attrs['given_name'];
+    const familyName = attrs['family_name'];
+
+    if (givenName || familyName) {
+      return { firstName: givenName ?? null, lastName: familyName ?? null };
+    }
+
+    const name = attrs['name']?.trim();
+    if (!name) {
+      return { firstName: null, lastName: null };
+    }
+
+    const [firstName, ...rest] = name.split(/\s+/);
+    return { firstName, lastName: rest.length ? rest.join(' ') : null };
+  }
+
+  async bulkDeleteByEmails(emails: string[]): Promise<{
+    deleted: string[];
+    failed: { email: string; reason: string }[];
+  }> {
+    const deleted: string[] = [];
+    const failed: { email: string; reason: string }[] = [];
+
+    await Promise.all(
+      emails.map(async (email) => {
+        const user = await this.usersRepository.findOne({ where: { email } });
+
+        if (!user) {
+          failed.push({ email, reason: 'User not found' });
+          return;
+        }
+
+        if (user.deletedAt !== null) {
+          failed.push({ email, reason: 'User already deleted' });
+          return;
+        }
+
+        try {
+          const now = new Date();
+          await this.usersRepository.update(user.id, {
+            isActive: false,
+            deletedAt: now,
+            updatedAt: now,
+          });
+
+          await Promise.all([
+            this.dynamoService.deleteUser(user.id, user.sub!),
+            this.cognitoAdminService.deleteUser(user.sub!),
+          ]);
+
+          deleted.push(email);
+          this.logger.log(`Bulk deleted user email=${email} id=${user.id}`);
+        } catch (err) {
+          this.logger.error(`Failed to delete user email=${email}`, err);
+          failed.push({ email, reason: 'Internal error during deletion' });
+        }
+      }),
     );
 
-    // Validacion email uniqueness
-    const emailAddress = data.email_addresses?.find(
-      (email) => email.id === data.primary_email_address_id,
-    )?.email_address;
+    return { deleted, failed };
+  }
 
-    const newEmail = emailAddress?.toLowerCase().trim();
+  async findMe(
+    cognitoSub: string,
+  ): Promise<Pick<User, 'email' | 'firstName' | 'lastName'>> {
+    const user = await this.usersRepository.findOne({
+      where: { sub: cognitoSub },
+      select: ['email', 'firstName', 'lastName'],
+    });
 
-    if (newEmail) {
-      const existingUser = await this.usersRepository.findOne({
-        where: { email: newEmail },
-      });
-
-      // Si existe y NO es el mismo usuario, lanzar ConflictException
-      if (existingUser && existingUser.clerkId !== data.id) {
-        await log.updateOne({
-          statusProcess: StatusProcess.Error,
-          errorMessage: `Email ${newEmail} already exists for another user`,
-        });
-
-        this.logger.warn(
-          `[UsersService][update] Email conflict: ${newEmail} is already used by another user`,
-        );
-
-        throw new ConflictException(
-          `Email ${newEmail} is already registered to another user`,
-        );
-      }
+    if (!user) {
+      throw new UserNotFoundException(cognitoSub);
     }
 
-    try {
-      const updateData = {
-        firstName: data?.first_name,
-        lastName: data?.last_name,
-        imageUrl: data?.image_url,
-        email: newEmail,
-      };
+    return user;
+  }
 
-      await this.usersRepository.update({ clerkId: data.id }, updateData);
+  async deleteMe(cognitoSub: string): Promise<void> {
+    const user = await this.usersRepository.findOne({
+      where: { sub: cognitoSub },
+    });
 
-      await log.updateOne({
-        statusProcess: StatusProcess.Completed,
-        errorMessage: '',
-      });
-
-      this.logger.log(
-        `User updated successfully - clerkId: ${data.id}, fields: ${Object.keys(updateData).join(', ')}`,
-      );
-
-      return { completed: true };
-    } catch (error) {
-      await log.updateOne({
-        statusProcess: StatusProcess.Error,
-        errorMessage: error.message,
-      });
-
-      this.handleError(error, data.id, 'update');
+    if (!user) {
+      throw new UserNotFoundException(cognitoSub);
     }
+
+    if (user.deletedAt !== null) {
+      throw new UserAlreadyDeletedException();
+    }
+
+    const now = new Date();
+    await this.usersRepository.update(user.id, {
+      isActive: false,
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    await Promise.all([
+      this.dynamoService.deleteUser(user.id, cognitoSub),
+      this.cognitoAdminService.deleteUser(cognitoSub),
+    ]);
+
+    this.logger.log(`User deleted sub=${cognitoSub} id=${user.id}`);
   }
 }

@@ -1,151 +1,263 @@
-import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClerkClient } from '@clerk/backend';
 import {
-  UserPublicMetadata,
-  ClerkFullUser,
-} from './interfaces/clerk-user.interface';
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+  ConfirmSignUpCommand,
+  ResendConfirmationCodeCommand,
+  InitiateAuthCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
+  GlobalSignOutCommand,
+  UsernameExistsException,
+  CodeMismatchException,
+  ExpiredCodeException,
+  LimitExceededException,
+  TooManyRequestsException,
+  NotAuthorizedException,
+  UserNotConfirmedException as CognitoUserNotConfirmedException,
+} from '@aws-sdk/client-cognito-identity-provider';
+import { RegisterDto } from './dto/register.dto';
+import { ConfirmRegistrationDto } from './dto/confirm-registration.dto';
+import { ResendCodeDto } from './dto/resend-code.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import {
+  UserAlreadyExistsException,
+  InvalidConfirmationCodeException,
+  ResendCodeLimitExceededException,
+  InvalidCredentialsException,
+  InvalidRefreshTokenException,
+  InvalidAccessTokenException,
+  InvalidResetCodeException,
+  UserNotConfirmedException,
+  CognitoException,
+} from './exceptions/auth.exceptions';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly clerkClient;
+  private readonly cognitoClient: CognitoIdentityProviderClient;
+  private readonly clientId: string;
 
-  constructor(private configService: ConfigService) {
-    // Inicializar Clerk Client
-    this.clerkClient = createClerkClient({
-      secretKey: this.configService.get<string>('CLERK_SECRET_KEY'),
-      publishableKey: this.configService.get<string>('CLERK_PUBLISHABLE_KEY'),
-    });
+  constructor(private readonly configService: ConfigService) {
+    const region = this.configService.get<string>('aws.region');
+    this.clientId = this.configService.get<string>('cognito.clientId') ?? '';
+
+    this.cognitoClient = new CognitoIdentityProviderClient({ region });
   }
 
-  /**
-   * Obtiene la información completa de un usuario por su ID
-   *
-   * @param userId - ID del usuario en Clerk (ej: "user_2abc123xyz")
-   * @returns Objeto User completo de Clerk
-   *
-   * @example
-   * ```typescript
-   * const user = await this.authService.getUserById('user_2abc123xyz');
-   * console.log(user.publicMetadata);
-   * ```
-   */
-  async getUserById(userId: string): Promise<ClerkFullUser> {
+  async register(dto: RegisterDto) {
+    this.logger.log(`Sign up attempt for email: ${dto.email}`);
     try {
-      const user = await this.clerkClient.users.getUser(userId);
-      return user as ClerkFullUser;
-    } catch (error) {
-      this.logger.error(`Error fetching user ${userId}:`, error);
-      throw new InternalServerErrorException('Failed to fetch user data');
-    }
-  }
-
-  /**
-   * Actualiza el publicMetadata de un usuario
-   *
-   * @param userId - ID del usuario en Clerk
-   * @param metadata - Objeto con los datos a actualizar (merge parcial)
-   * @returns Usuario actualizado
-   *
-   * @example
-   * ```typescript
-   * await this.authService.updatePublicMetadata('user_2abc123xyz', {
-   *   storeSlug: 'mi-tienda',
-   *   plan: 'premium',
-   *   onboardingCompleted: true,
-   * });
-   * ```
-   */
-  async updatePublicMetadata(
-    userId: string,
-    metadata: Partial<UserPublicMetadata>,
-  ) {
-    try {
-      const updatedUser = await this.clerkClient.users.updateUserMetadata(
-        userId,
-        {
-          publicMetadata: metadata,
-        },
+      const result = await this.cognitoClient.send(
+        new SignUpCommand({
+          ClientId: this.clientId,
+          Username: dto.email,
+          Password: dto.password,
+          UserAttributes: [
+            { Name: 'email', Value: dto.email },
+            { Name: 'given_name', Value: dto.firstName },
+            { Name: 'family_name', Value: dto.lastName },
+            { Name: 'name', Value: `${dto.firstName} ${dto.lastName}` },
+          ],
+        }),
       );
 
-      this.logger.log(`Updated publicMetadata for user ${userId}`);
-      return updatedUser;
-    } catch (error) {
-      this.logger.error(`Error updating metadata for user ${userId}:`, error);
-      throw new InternalServerErrorException('Failed to update user metadata');
-    }
-  }
-
-  /**
-   * Actualiza el privateMetadata de un usuario (solo backend)
-   *
-   * @param userId - ID del usuario en Clerk
-   * @param metadata - Objeto con los datos privados a actualizar
-   * @returns Usuario actualizado
-   *
-   * @example
-   * ```typescript
-   * await this.authService.updatePrivateMetadata('user_2abc123xyz', {
-   *   stripeCustomerId: 'cus_abc123',
-   *   internalNotes: 'VIP customer',
-   * });
-   * ```
-   */
-  async updatePrivateMetadata(userId: string, metadata: Record<string, any>) {
-    try {
-      const updatedUser = await this.clerkClient.users.updateUserMetadata(
-        userId,
-        {
-          privateMetadata: metadata,
-        },
+      this.logger.log(
+        `Sign up succeeded for email: ${dto.email} (userSub: ${result.UserSub})`,
       );
 
-      this.logger.log(`Updated privateMetadata for user ${userId}`);
-      return updatedUser;
+      return {
+        userSub: result.UserSub,
+        message: 'Verification code sent to your email',
+      };
     } catch (error) {
       this.logger.error(
-        `Error updating private metadata for user ${userId}:`,
-        error,
+        `Sign up failed for email: ${dto.email} - ${error.message}`,
+        error.stack,
       );
-      throw new InternalServerErrorException('Failed to update user metadata');
+      if (error instanceof UsernameExistsException) {
+        throw new UserAlreadyExistsException(dto.email);
+      }
+      throw new CognitoException(error.message);
     }
   }
 
-  /**
-   * Actualiza ambos metadatos a la vez
-   *
-   * @param userId - ID del usuario en Clerk
-   * @param publicMetadata - Datos públicos a actualizar
-   * @param privateMetadata - Datos privados a actualizar
-   * @returns Usuario actualizado
-   */
-  async updateAllMetadata(
-    userId: string,
-    publicMetadata?: Partial<UserPublicMetadata>,
-    privateMetadata?: Record<string, any>,
-  ) {
+  async confirmRegistration(dto: ConfirmRegistrationDto) {
     try {
-      const updatedUser = await this.clerkClient.users.updateUserMetadata(
-        userId,
-        {
-          ...(publicMetadata && { publicMetadata }),
-          ...(privateMetadata && { privateMetadata }),
-        },
+      await this.cognitoClient.send(
+        new ConfirmSignUpCommand({
+          ClientId: this.clientId,
+          Username: dto.email,
+          ConfirmationCode: dto.code,
+        }),
       );
 
-      this.logger.log(`Updated metadata for user ${userId}`);
-      return updatedUser;
+      return { message: 'Account confirmed successfully. You can now log in.' };
+    } catch (error) {
+      this.logger.error('Error confirming registration', error);
+      if (
+        error instanceof CodeMismatchException ||
+        error instanceof ExpiredCodeException
+      ) {
+        throw new InvalidConfirmationCodeException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async resendCode(dto: ResendCodeDto) {
+    try {
+      await this.cognitoClient.send(
+        new ResendConfirmationCodeCommand({
+          ClientId: this.clientId,
+          Username: dto.email,
+        }),
+      );
+
+      return { message: 'Verification code resent to your email' };
+    } catch (error) {
+      this.logger.error('Error resending confirmation code', error);
+      if (
+        error instanceof LimitExceededException ||
+        error instanceof TooManyRequestsException
+      ) {
+        throw new ResendCodeLimitExceededException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async login(dto: LoginDto) {
+    this.logger.log(`Sign in attempt for email: ${dto.email}`);
+    try {
+      const result = await this.cognitoClient.send(
+        new InitiateAuthCommand({
+          AuthFlow: 'USER_PASSWORD_AUTH',
+          ClientId: this.clientId,
+          AuthParameters: {
+            USERNAME: dto.email,
+            PASSWORD: dto.password,
+          },
+        }),
+      );
+
+      const tokens = result.AuthenticationResult!;
+
+      this.logger.log(`Sign in succeeded for email: ${dto.email}`);
+
+      return {
+        accessToken: tokens.AccessToken!,
+        refreshToken: tokens.RefreshToken!,
+        expiresIn: tokens.ExpiresIn!,
+        tokenType: tokens.TokenType!,
+      };
     } catch (error) {
       this.logger.error(
-        `Error updating all metadata for user ${userId}:`,
-        error,
+        `Sign in failed for email: ${dto.email} - ${error.message}`,
+        error.stack,
       );
-      throw new InternalServerErrorException('Failed to update user metadata');
+      if (error instanceof NotAuthorizedException) {
+        throw new InvalidCredentialsException();
+      }
+      if (error instanceof CognitoUserNotConfirmedException) {
+        throw new UserNotConfirmedException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    try {
+      await this.cognitoClient.send(
+        new ForgotPasswordCommand({
+          ClientId: this.clientId,
+          Username: dto.email,
+        }),
+      );
+
+      return { message: 'Password reset code sent to your email' };
+    } catch (error) {
+      this.logger.error('Error sending forgot password code', error);
+      if (
+        error instanceof LimitExceededException ||
+        error instanceof TooManyRequestsException
+      ) {
+        throw new ResendCodeLimitExceededException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    try {
+      await this.cognitoClient.send(
+        new ConfirmForgotPasswordCommand({
+          ClientId: this.clientId,
+          Username: dto.email,
+          ConfirmationCode: dto.code,
+          Password: dto.newPassword,
+        }),
+      );
+
+      return { message: 'Password reset successfully. You can now log in.' };
+    } catch (error) {
+      this.logger.error('Error resetting password', error);
+      if (
+        error instanceof CodeMismatchException ||
+        error instanceof ExpiredCodeException
+      ) {
+        throw new InvalidResetCodeException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async logout(accessToken: string) {
+    try {
+      await this.cognitoClient.send(
+        new GlobalSignOutCommand({
+          AccessToken: accessToken,
+        }),
+      );
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      this.logger.error('Error logging out user', error);
+      if (error instanceof NotAuthorizedException) {
+        throw new InvalidAccessTokenException();
+      }
+      throw new CognitoException(error.message);
+    }
+  }
+
+  async refreshToken(dto: RefreshTokenDto) {
+    try {
+      const result = await this.cognitoClient.send(
+        new InitiateAuthCommand({
+          AuthFlow: 'REFRESH_TOKEN_AUTH',
+          ClientId: this.clientId,
+          AuthParameters: {
+            REFRESH_TOKEN: dto.refreshToken,
+          },
+        }),
+      );
+
+      const tokens = result.AuthenticationResult!;
+      return {
+        accessToken: tokens.AccessToken!,
+        expiresIn: tokens.ExpiresIn!,
+        tokenType: tokens.TokenType!,
+      };
+    } catch (error) {
+      this.logger.error('Error refreshing token', error);
+      if (error instanceof NotAuthorizedException) {
+        throw new InvalidRefreshTokenException();
+      }
+      throw new CognitoException(error.message);
     }
   }
 }

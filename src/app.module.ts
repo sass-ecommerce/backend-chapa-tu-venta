@@ -2,13 +2,24 @@ import { Module } from '@nestjs/common';
 import { UsersModule } from './users/users.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MongooseModule } from '@nestjs/mongoose';
+import { CacheModule } from '@nestjs/cache-manager';
+import { createKeyv } from '@keyv/redis';
 import { CommonModule } from './common/common.module';
 import { ValidationSchema } from './config/joi.validation';
-import { databaseConfig } from './config/configuration';
+import {
+  awsConfig,
+  cognitoConfig,
+  databaseConfig,
+  dynamoConfig,
+  redisConfig,
+  s3Config,
+} from './config/configuration';
 import { ProductsModule } from './products/products.module';
-import { StoresModule } from './stores/stores.module';
+import { TenantsModule } from './tenants/tenants.module';
+import { CategoriesModule } from './categories/categories.module';
 import { AuthModule } from './auth/auth.module';
+import { StorageModule } from './storage/storage.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -20,37 +31,44 @@ import { AuthModule } from './auth/auth.module';
         abortEarly: true,
         allowUnknown: true,
       },
-      load: [databaseConfig],
+      load: [
+        databaseConfig,
+        awsConfig,
+        cognitoConfig,
+        s3Config,
+        dynamoConfig,
+        redisConfig,
+      ],
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      useFactory: (configService: ConfigService) => ({
+        stores: [createKeyv(configService.getOrThrow<string>('redis.url'))],
+        ttl: configService.get<number>('redis.ttl'),
+      }),
+      inject: [ConfigService],
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        host: configService.get<string>('database.postgres.host'),
-        port: configService.get<number>('database.postgres.port'),
-        username: configService.get<string>('database.postgres.username'),
-        password: configService.get<string>('database.postgres.password'),
-        database: configService.get<string>('database.postgres.database'),
-        schema: configService.get<string>('database.postgres.schema'),
+        url: configService.get<string>('database.postgres.url'),
         autoLoadEntities: true,
         logger: 'advanced-console',
-        synchronize: false,
-        logging: ['error', 'warn', 'query'],
-      }),
-    }),
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('database.mongodb.uri'),
+        synchronize: true,
+        logging: ['error'],
+        // logging: ['error', 'warn', 'query'],
       }),
     }),
     AuthModule,
-    StoresModule,
+    TenantsModule,
     UsersModule,
     CommonModule,
+    CategoriesModule,
     ProductsModule,
+    StorageModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [],

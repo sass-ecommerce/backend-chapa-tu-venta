@@ -1,0 +1,48 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AuthGuard } from '@nestjs/passport';
+import { Observable } from 'rxjs';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+
+@Injectable()
+export class CognitoJwtGuard
+  extends AuthGuard('cognito-jwt')
+  implements CanActivate
+{
+  private readonly logger = new Logger(CognitoJwtGuard.name);
+
+  constructor(private reflector: Reflector) {
+    super();
+  }
+
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
+    return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any) {
+    if (err || !user) {
+      this.logger.warn(
+        `Cognito JWT validation failed: ${err?.message || 'No user found'}`,
+      );
+      throw err || new UnauthorizedException('Invalid or expired token');
+    }
+    return user;
+  }
+}

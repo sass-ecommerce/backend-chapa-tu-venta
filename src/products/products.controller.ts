@@ -1,24 +1,35 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ValidationPipe,
   UsePipes,
-  HttpCode,
+  ValidationPipe,
 } from '@nestjs/common';
-import { ProductsService } from './products.service';
+import { ProductsService, PRODUCTS_CACHE_RESOURCE } from './products.service';
+import { ProductImagesService } from './product-images.service';
+import { CacheService } from '../common/helpers/cache.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { ClerkAuthGuard } from 'src/auth/guards/clerk-auth.guard';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
+import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
+import { QueryProductDto } from './dto/query-product.dto';
+import { AddProductImageDto } from './dto/add-product-image.dto';
+import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface';
+import { Public } from 'src/auth/decorators/public.decorator';
+import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
 
 @Controller('products')
-@UseGuards(ClerkAuthGuard)
+@UseGuards(CognitoJwtGuard)
 @UsePipes(
   new ValidationPipe({
     whitelist: true,
@@ -27,28 +38,173 @@ import type { AuthenticatedUser } from 'src/auth/interfaces/clerk-user.interface
   }),
 )
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly productImagesService: ProductImagesService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   @Post()
-  @HttpCode(200)
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() createProductDto: CreateProductDto,
+  async create(
+    @CurrentUser() user: CognitoUser,
+    @Body() dto: CreateProductDto,
   ) {
-    return this.productsService.create(createProductDto, user);
+    const product = await this.productsService.create(dto, user.tenantId!);
+    return {
+      code: 201,
+      message: 'Product created successfully',
+      data: product,
+    };
   }
 
   @Get()
-  findAll(
-    @Query() paginationDto: PaginationDto,
-    @CurrentUser() user: AuthenticatedUser,
+  async findAll(
+    @CurrentUser() user: CognitoUser,
+    @Query() query: QueryProductDto,
   ) {
-    console.log('[ProductsController][findAll][user]', user);
-    return this.productsService.findAll(paginationDto);
+    const result = await this.productsService.findAll(query, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Products retrieved successfully',
+      data: { products: result.data, meta: result.meta },
+    };
   }
 
-  @Get(':slug')
-  findOne(@Param('slug') slug: string) {
-    return this.productsService.findOne(slug);
+  @Get(':id')
+  async findOne(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const product = await this.productsService.findOne(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Product retrieved successfully',
+      data: product,
+    };
+  }
+
+  @Post(':id/variants')
+  async createVariants(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateProductVariantsDto,
+  ) {
+    const variants = await this.productsService.createVariants(
+      id,
+      dto,
+      user.tenantId!,
+    );
+    return {
+      code: 201,
+      message: 'Variants created successfully',
+      data: variants,
+    };
+  }
+
+  @Get(':id/variants')
+  async findVariants(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const variants = await this.productsService.findVariantsByProduct(
+      id,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Variants retrieved successfully',
+      data: variants,
+    };
+  }
+
+  @Patch('variants/:id')
+  async updateVariant(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductVariantDto,
+  ) {
+    const variant = await this.productsService.updateVariant(
+      id,
+      dto,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Variant updated successfully',
+      data: variant,
+    };
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    const product = await this.productsService.update(id, dto, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Product updated successfully',
+      data: product,
+    };
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.productsService.softDelete(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Product deleted successfully',
+      data: null,
+    };
+  }
+
+  @Post('images')
+  @Public()
+  async addImage(@Body() dto: AddProductImageDto) {
+    const image = await this.productImagesService.addImage(dto);
+    await this.cacheService.deleteListByScope(
+      PRODUCTS_CACHE_RESOURCE,
+      dto.tenantId,
+    );
+    return {
+      code: 201,
+      message: 'Image added successfully',
+      data: image,
+    };
+  }
+
+  @Delete('images/:id')
+  @HttpCode(HttpStatus.OK)
+  async removeImage(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.productImagesService.removeImage(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Image deleted successfully',
+      data: null,
+    };
+  }
+
+  @Get(':id/images')
+  async findProductImages(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const images = await this.productImagesService.findImagesByProduct(
+      id,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Images retrieved successfully',
+      data: images,
+    };
   }
 }

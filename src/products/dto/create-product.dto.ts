@@ -1,54 +1,54 @@
+import { Type } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
+  IsUUID,
+  ValidateNested,
 } from 'class-validator';
 
-export class CreateProductDto {
-  @IsNumber()
-  @IsInt()
-  storeId: number;
-
+export class ProductAttributeDto {
   @IsString()
-  sku: string;
-
   @IsNotEmpty()
+  attributeKey: string;
+
   @IsString()
+  @IsNotEmpty()
+  attributeLabel: string;
+
+  @IsString()
+  @IsNotEmpty()
+  value: string;
+}
+
+export class CreateProductDto {
+  @IsUUID()
+  categoryId: string;
+
+  @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   description?: string;
 
-  @IsOptional()
   @IsNumber()
-  price?: number;
+  @IsPositive()
+  @Type(() => Number)
+  basePrice: number;
 
-  @IsOptional()
-  @IsNumber()
-  @IsInt()
-  stockQuantity?: number;
-
-  @IsOptional()
-  @IsNumber()
-  priceList?: number;
-
-  @IsOptional()
-  @IsNumber()
-  priceBase?: number;
-
-  @IsOptional()
-  @IsString()
-  imageUri?: string;
-
-  @IsOptional()
   @IsBoolean()
-  trending?: boolean;
-
   @IsOptional()
-  @IsNumber()
-  rating?: number;
+  isActive?: boolean;
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => ProductAttributeDto)
+  attributes?: ProductAttributeDto[];
 }
