@@ -69,17 +69,6 @@ export class InvalidRefreshTokenException extends ApiException {
   }
 }
 
-export class InvalidAccessTokenException extends ApiException {
-  constructor() {
-    super(
-      42,
-      'Invalid or expired access token',
-      undefined,
-      HttpStatus.UNAUTHORIZED,
-    );
-  }
-}
-
 export class InvalidResetCodeException extends ApiException {
   constructor() {
     super(

@@ -30,7 +30,6 @@ import {
   ResendCodeLimitExceededException,
   InvalidCredentialsException,
   InvalidRefreshTokenException,
-  InvalidAccessTokenException,
   InvalidResetCodeException,
   UserNotConfirmedException,
   CognitoException,
@@ -226,10 +225,15 @@ export class AuthService {
 
       return { message: 'Logged out successfully' };
     } catch (error) {
-      this.logger.error('Error logging out user', error);
       if (error instanceof NotAuthorizedException) {
-        throw new InvalidAccessTokenException();
+        // El token ya fue revocado/expiró en Cognito (p. ej. doble logout):
+        // el resultado deseado (sin sesión activa) ya se cumplió.
+        this.logger.warn(
+          'GlobalSignOut received an already invalid/expired access token; treating as already logged out',
+        );
+        return { message: 'Logged out successfully' };
       }
+      this.logger.error('Error logging out user', error);
       throw new CognitoException(error.message);
     }
   }
