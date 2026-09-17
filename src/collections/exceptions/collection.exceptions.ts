@@ -7,17 +7,6 @@ export class CollectionNotFoundException extends ApiException {
   }
 }
 
-export class CollectionProductNotFoundException extends ApiException {
-  constructor(productId: string, collectionId: string) {
-    super(
-      61,
-      `Product '${productId}' not found in collection '${collectionId}'`,
-      undefined,
-      HttpStatus.NOT_FOUND,
-    );
-  }
-}
-
 export class CollectionInvalidProductsException extends ApiException {
   constructor(invalidProductIds: string[]) {
     super(

@@ -19,6 +19,7 @@ import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { QueryCollectionProductsDto } from './dto/query-collection-products.dto';
 import { AddProductsToCollectionDto } from './dto/add-products-to-collection.dto';
+import { RemoveProductsFromCollectionDto } from './dto/remove-products-from-collection.dto';
 import { DeleteCollectionsDto } from './dto/delete-collections.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
@@ -114,20 +115,6 @@ export class CollectionsController {
     };
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.OK)
-  async remove(
-    @CurrentUser() user: CognitoUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    await this.collectionsService.softDelete(id, user.tenantId!);
-    return {
-      code: 200,
-      message: 'Collection deleted successfully',
-      data: null,
-    };
-  }
-
   @Delete()
   @HttpCode(HttpStatus.OK)
   async removeMany(
@@ -163,18 +150,22 @@ export class CollectionsController {
     };
   }
 
-  @Delete(':id/products/:productId')
+  @Delete(':id/products')
   @HttpCode(HttpStatus.OK)
-  async removeProduct(
+  async removeProducts(
     @CurrentUser() user: CognitoUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Body() dto: RemoveProductsFromCollectionDto,
   ) {
-    await this.collectionsService.removeProduct(id, productId, user.tenantId!);
+    const result = await this.collectionsService.removeProducts(
+      id,
+      dto,
+      user.tenantId!,
+    );
     return {
       code: 200,
-      message: 'Product removed from collection successfully',
-      data: null,
+      message: 'Products removed from collection successfully',
+      data: result,
     };
   }
 }

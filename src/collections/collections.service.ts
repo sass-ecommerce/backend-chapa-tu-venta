@@ -10,10 +10,10 @@ import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { QueryCollectionProductsDto } from './dto/query-collection-products.dto';
 import { AddProductsToCollectionDto } from './dto/add-products-to-collection.dto';
+import { RemoveProductsFromCollectionDto } from './dto/remove-products-from-collection.dto';
 import {
   CollectionInvalidProductsException,
   CollectionNotFoundException,
-  CollectionProductNotFoundException,
   CollectionsNotFoundException,
 } from './exceptions/collection.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
@@ -493,35 +493,43 @@ export class CollectionsService {
     return { added };
   }
 
-  async removeProduct(
+  async removeProducts(
     collectionId: string,
-    productId: string,
+    dto: RemoveProductsFromCollectionDto,
     tenantId: string,
-  ): Promise<void> {
+  ): Promise<{ removed: number }> {
     await this.ensureCollectionExists(collectionId, tenantId);
 
-    const result = await this.collectionProductRepository.query(
-      `DELETE FROM collection_products WHERE collection_id = $1 AND product_id = $2 RETURNING id`,
-      [collectionId, productId],
+    const uniqueProductIds = [...new Set(dto.productIds)];
+
+    const removedRows = await this.collectionProductRepository.query(
+      `
+      DELETE FROM collection_products
+      WHERE collection_id = $1 AND product_id = ANY($2::uuid[])
+      RETURNING id, product_id AS "productId"
+      `,
+      [collectionId, uniqueProductIds],
     );
-    if (!result.length) {
-      throw new CollectionProductNotFoundException(productId, collectionId);
-    }
 
     await this.invalidateCollectionCache(collectionId, tenantId);
 
-    await this.eventBridgeService.publish(
-      COLLECTION_EVENT_SOURCE,
-      'collection.products.removed',
-      {
-        collectionId,
-        tenantId,
-        productId,
-      },
-    );
+    const removed = removedRows.length;
+    if (removed > 0) {
+      await this.eventBridgeService.publish(
+        COLLECTION_EVENT_SOURCE,
+        'collection.products.removed',
+        {
+          collectionId,
+          tenantId,
+          productIds: removedRows.map((r) => r.productId as string),
+          removed,
+        },
+      );
+    }
 
     this.logger.log(
-      `Product ${productId} removed from collection: ${collectionId}`,
+      `${removed} product(s) removed from collection: ${collectionId}`,
     );
+    return { removed };
   }
 }
