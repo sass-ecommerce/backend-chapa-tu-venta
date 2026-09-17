@@ -19,6 +19,7 @@ import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { QueryCollectionProductsDto } from './dto/query-collection-products.dto';
 import { AddProductsToCollectionDto } from './dto/add-products-to-collection.dto';
+import { DeleteCollectionsDto } from './dto/delete-collections.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
@@ -124,6 +125,23 @@ export class CollectionsController {
       code: 200,
       message: 'Collection deleted successfully',
       data: null,
+    };
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  async removeMany(
+    @CurrentUser() user: CognitoUser,
+    @Body() dto: DeleteCollectionsDto,
+  ) {
+    const result = await this.collectionsService.softDeleteMany(
+      dto.ids,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Collections deleted successfully',
+      data: result,
     };
   }
 

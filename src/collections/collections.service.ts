@@ -14,6 +14,7 @@ import {
   CollectionInvalidProductsException,
   CollectionNotFoundException,
   CollectionProductNotFoundException,
+  CollectionsNotFoundException,
 } from './exceptions/collection.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
 import { CacheService } from '../common/helpers/cache.service';
@@ -399,6 +400,48 @@ export class CollectionsService {
     );
 
     this.logger.log(`Collection soft-deleted: ${id}`);
+  }
+
+  async softDeleteMany(
+    ids: string[],
+    tenantId: string,
+  ): Promise<{ deleted: number }> {
+    const uniqueIds = [...new Set(ids)];
+
+    const collections = await this.collectionRepository.find({
+      where: { id: In(uniqueIds), tenantId, deletedAt: IsNull() },
+      select: ['id'],
+    });
+    const existingIds = new Set(collections.map((c) => c.id));
+    const missingIds = uniqueIds.filter((id) => !existingIds.has(id));
+    if (missingIds.length) {
+      throw new CollectionsNotFoundException(missingIds);
+    }
+
+    const deletedAt = new Date();
+    await this.collectionRepository.update(
+      { id: In(uniqueIds), tenantId },
+      { deletedAt },
+    );
+
+    await Promise.all(
+      uniqueIds.map((id) => this.invalidateCollectionCache(id, tenantId)),
+    );
+
+    await this.eventBridgeService.publish(
+      COLLECTION_EVENT_SOURCE,
+      'collection.deleted',
+      {
+        collectionIds: uniqueIds,
+        tenantId,
+        deletedAt,
+      },
+    );
+
+    this.logger.log(
+      `${uniqueIds.length} collection(s) soft-deleted: ${uniqueIds.join(', ')}`,
+    );
+    return { deleted: uniqueIds.length };
   }
 
   async addProducts(

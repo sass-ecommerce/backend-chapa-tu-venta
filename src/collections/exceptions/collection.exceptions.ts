@@ -28,3 +28,14 @@ export class CollectionInvalidProductsException extends ApiException {
     );
   }
 }
+
+export class CollectionsNotFoundException extends ApiException {
+  constructor(missingIds: string[]) {
+    super(
+      63,
+      'One or more collections were not found',
+      missingIds,
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
