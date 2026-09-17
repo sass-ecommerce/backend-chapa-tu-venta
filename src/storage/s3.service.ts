@@ -76,6 +76,15 @@ export class S3Service {
     return `${tenantId}/${StorageFolder.STORES}/${primaryIdentifier}/${uuid}${ext}`;
   }
 
+  private buildCollectionsKey(
+    tenantId: string,
+    primaryIdentifier: string,
+    uuid: string,
+    ext: string,
+  ): string {
+    return `${tenantId}/${StorageFolder.COLLECTIONS}/${primaryIdentifier}/${uuid}${ext}`;
+  }
+
   private buildKey(
     folder: StorageFolder,
     tenantId: string,
@@ -105,6 +114,13 @@ export class S3Service {
         return this.buildAvatarsKey(tenantId, userSub, uuid, ext);
       case StorageFolder.STORES:
         return this.buildStoresKey(
+          tenantId,
+          primaryIdentifier ?? userSub,
+          uuid,
+          ext,
+        );
+      case StorageFolder.COLLECTIONS:
+        return this.buildCollectionsKey(
           tenantId,
           primaryIdentifier ?? userSub,
           uuid,

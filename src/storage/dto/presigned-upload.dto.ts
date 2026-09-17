@@ -5,6 +5,7 @@ export enum StorageFolder {
   VARIANTS = 'variants',
   AVATARS = 'avatars',
   STORES = 'stores',
+  COLLECTIONS = 'collections',
 }
 
 const ALLOWED_CONTENT_TYPES = [

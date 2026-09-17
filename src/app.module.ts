@@ -17,6 +17,7 @@ import {
 import { ProductsModule } from './products/products.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CollectionsModule } from './collections/collections.module';
 import { AuthModule } from './auth/auth.module';
 import { StorageModule } from './storage/storage.module';
 import { EventsModule } from './events/events.module';
@@ -67,6 +68,7 @@ import { EventsModule } from './events/events.module';
     CommonModule,
     CategoriesModule,
     ProductsModule,
+    CollectionsModule,
     StorageModule,
     EventsModule,
   ],
