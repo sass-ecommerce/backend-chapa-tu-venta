@@ -74,6 +74,10 @@ export class EventBridgeService implements OnModuleInit {
         );
         throw new EventBridgePublishException();
       }
+
+      this.logger.log(
+        `Event published to EventBridge: source=${source} detailType=${detailType} eventId=${response.Entries?.[0]?.EventId}`,
+      );
     } catch (error) {
       if (error instanceof EventBridgePublishException) throw error;
       this.logger.error('Unexpected error publishing to EventBridge', error);
