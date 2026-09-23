@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
   UsePipes,
@@ -13,6 +14,7 @@ import {
 import { UsersService } from './users.service';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
 import { BulkDeleteUsersDto } from './dto/bulk-delete-users.dto';
+import { UpdateUserBasicDto } from './dto/update-user-basic.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { CognitoUser } from '../auth/interfaces/cognito-user.interface';
@@ -47,6 +49,20 @@ export class UsersController {
     return {
       code: 200,
       message: 'User retrieved successfully',
+      data,
+    };
+  }
+
+  @Patch('me')
+  @HttpCode(HttpStatus.OK)
+  async updateMe(
+    @CurrentUser() user: CognitoUser,
+    @Body() dto: UpdateUserBasicDto,
+  ) {
+    const data = await this.usersService.updateMe(user.sub, dto);
+    return {
+      code: 200,
+      message: 'User updated successfully',
       data,
     };
   }

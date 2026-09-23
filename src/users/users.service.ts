@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CognitoPostConfirmationDto } from './dto/cognito-post-confirmation.dto';
+import { UpdateUserBasicDto } from './dto/update-user-basic.dto';
 import { DynamoService } from './dynamo.service';
 import { CognitoAdminService } from '../auth/cognito-admin.service';
 import {
@@ -180,6 +181,44 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async updateMe(
+    cognitoSub: string,
+    dto: UpdateUserBasicDto,
+  ): Promise<Pick<User, 'email' | 'firstName' | 'lastName'>> {
+    const user = await this.usersRepository.findOne({
+      where: { sub: cognitoSub },
+    });
+
+    if (!user || user.deletedAt !== null) {
+      throw new UserNotFoundException(cognitoSub);
+    }
+
+    const firstName = dto.firstName ?? user.firstName ?? '';
+    const lastName = dto.lastName ?? user.lastName ?? '';
+
+    // Cognito primero: si falla, no dejamos la BD desincronizada.
+    await this.cognitoAdminService.updateNames(cognitoSub, firstName, lastName);
+
+    user.firstName = firstName;
+    user.lastName = lastName;
+    user.updatedAt = new Date();
+
+    const updated = await this.usersRepository.save(user);
+
+    await this.dynamoService.updateUserNames(updated.id, cognitoSub, {
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+    });
+
+    this.logger.log(`User names updated sub=${cognitoSub} id=${updated.id}`);
+
+    return {
+      email: updated.email,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+    };
   }
 
   async deleteMe(cognitoSub: string): Promise<void> {

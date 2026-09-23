@@ -90,4 +90,26 @@ export class DynamoService {
       }),
     );
   }
+
+  async updateUserNames(
+    userId: string,
+    sub: string,
+    names: { firstName: string | null; lastName: string | null },
+  ): Promise<void> {
+    this.logger.log(`Updating DynamoDB user names userId=${userId}`);
+
+    await this.client.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { id: userId, sub },
+        UpdateExpression:
+          'SET firstName = :firstName, lastName = :lastName, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':firstName': names.firstName,
+          ':lastName': names.lastName,
+          ':updatedAt': new Date().toISOString(),
+        },
+      }),
+    );
+  }
 }

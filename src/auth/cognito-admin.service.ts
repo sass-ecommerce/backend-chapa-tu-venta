@@ -42,6 +42,26 @@ export class CognitoAdminService {
     );
   }
 
+  async updateNames(
+    sub: string,
+    firstName: string,
+    lastName: string,
+  ): Promise<void> {
+    this.logger.log(`Updating names for sub=${sub}`);
+
+    await this.client.send(
+      new AdminUpdateUserAttributesCommand({
+        UserPoolId: this.userPoolId,
+        Username: sub,
+        UserAttributes: [
+          { Name: 'given_name', Value: firstName },
+          { Name: 'family_name', Value: lastName },
+          { Name: 'name', Value: `${firstName} ${lastName}`.trim() },
+        ],
+      }),
+    );
+  }
+
   async setTenantId(sub: string, tenantId: string): Promise<void> {
     this.logger.log(`Setting custom:tenantId=${tenantId} for sub=${sub}`);
 
