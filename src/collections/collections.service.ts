@@ -5,7 +5,6 @@ import { Collection } from './entities/collection.entity';
 import { CollectionProduct } from './entities/collection-product.entity';
 import { Product } from '../products/entities/product.entity';
 import { ProductImage } from '../products/entities/product-image.entity';
-import { ProductImagesService } from '../products/product-images.service';
 import { CreateCollectionDto } from './dto/create-collection.dto';
 import { UpdateCollectionDto } from './dto/update-collection.dto';
 import { QueryCollectionProductsDto } from './dto/query-collection-products.dto';
@@ -39,7 +38,6 @@ export class CollectionsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductImage)
     private readonly imageRepository: Repository<ProductImage>,
-    private readonly productImagesService: ProductImagesService,
     private readonly eventBridgeService: EventBridgeService,
     private readonly cacheService: CacheService,
     private readonly s3Service: S3Service,
@@ -80,11 +78,11 @@ export class CollectionsService {
     if (!collectionIds.length) return result;
 
     const rows = await this.collectionProductRepository.query<
-      { collectionId: string; s3Key: string }[]
+      { collectionId: string; url: string | null }[]
     >(
       `
       WITH ranked AS (
-        SELECT cp.collection_id, pi.s3_key,
+        SELECT cp.collection_id, pi.url,
                ROW_NUMBER() OVER (
                  PARTITION BY cp.collection_id
                  ORDER BY pi.is_primary DESC, pi.sort_order ASC, pi.created_at ASC, p.created_at ASC
@@ -94,7 +92,7 @@ export class CollectionsService {
         INNER JOIN product_images pi ON pi.product_id = p.id AND pi.deleted_at IS NULL
         WHERE cp.collection_id = ANY($1::uuid[])
       )
-      SELECT collection_id AS "collectionId", s3_key AS "s3Key"
+      SELECT collection_id AS "collectionId", url
       FROM ranked
       WHERE rn <= $2
       ORDER BY collection_id
@@ -102,21 +100,11 @@ export class CollectionsService {
       [collectionIds, PREVIEW_IMAGES_PER_COLLECTION],
     );
 
-    const uniqueKeys = [...new Set(rows.map((r) => r.s3Key as string))];
-    const urlByKey = new Map<string, string>();
-    await Promise.all(
-      uniqueKeys.map(async (key) => {
-        const { viewUrl } = await this.s3Service.generateViewUrl(key);
-        urlByKey.set(key, viewUrl);
-      }),
-    );
-
     for (const row of rows) {
+      if (!row.url) continue;
       const collectionId = row.collectionId as string;
-      const url = urlByKey.get(row.s3Key as string);
-      if (!url) continue;
       const list = result.get(collectionId) ?? [];
-      list.push(url);
+      list.push(row.url);
       result.set(collectionId, list);
     }
     return result;
@@ -138,6 +126,7 @@ export class CollectionsService {
         c.tenant_id        AS "tenantId",
         c.name,
         c.cover_image_key  AS "coverImageKey",
+        c.cover_image_url  AS "coverImageUrl",
         c.created_at       AS "createdAt",
         c.updated_at       AS "updatedAt",
         COUNT(cp.id)::int  AS "productsCount"
@@ -154,22 +143,17 @@ export class CollectionsService {
       rows.map((r) => r.id as string),
     );
 
-    const data = await Promise.all(
-      rows.map(async (r) => ({
-        id: r.id,
-        tenantId: r.tenantId,
-        name: r.name,
-        coverImageKey: r.coverImageKey,
-        coverImageUrl: r.coverImageKey
-          ? (await this.s3Service.generateViewUrl(r.coverImageKey as string))
-              .viewUrl
-          : null,
-        previewImageUrls: previewImagesByCollection.get(r.id as string) ?? [],
-        productsCount: r.productsCount,
-        createdAt: r.createdAt,
-        updatedAt: r.updatedAt,
-      })),
-    );
+    const data = rows.map((r) => ({
+      id: r.id,
+      tenantId: r.tenantId,
+      name: r.name,
+      coverImageKey: r.coverImageKey,
+      coverImageUrl: r.coverImageUrl,
+      previewImageUrls: previewImagesByCollection.get(r.id as string) ?? [],
+      productsCount: r.productsCount,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }));
 
     await this.cacheService.setList(
       COLLECTIONS_CACHE_RESOURCE,
@@ -193,6 +177,7 @@ export class CollectionsService {
         c.tenant_id        AS "tenantId",
         c.name,
         c.cover_image_key  AS "coverImageKey",
+        c.cover_image_url  AS "coverImageUrl",
         c.created_at       AS "createdAt",
         c.updated_at       AS "updatedAt",
         COUNT(cp.id)::int  AS "productsCount"
@@ -213,10 +198,7 @@ export class CollectionsService {
       tenantId: r.tenantId,
       name: r.name,
       coverImageKey: r.coverImageKey,
-      coverImageUrl: r.coverImageKey
-        ? (await this.s3Service.generateViewUrl(r.coverImageKey as string))
-            .viewUrl
-        : null,
+      coverImageUrl: r.coverImageUrl,
       previewImageUrls: previewImagesByCollection.get(id) ?? [],
       productsCount: r.productsCount,
       createdAt: r.createdAt,
@@ -285,15 +267,8 @@ export class CollectionsService {
         })
       : [];
 
-    const imagesWithUrls = images.length
-      ? await this.productImagesService.attachImageUrls(images)
-      : [];
-
-    const imagesByProductId = new Map<
-      string,
-      (typeof imagesWithUrls)[number][]
-    >();
-    for (const image of imagesWithUrls) {
+    const imagesByProductId = new Map<string, ProductImage[]>();
+    for (const image of images) {
       const list = imagesByProductId.get(image.productId) ?? [];
       list.push(image);
       imagesByProductId.set(image.productId, list);
@@ -330,6 +305,7 @@ export class CollectionsService {
       tenantId,
       name: dto.name,
       coverImageKey: null,
+      coverImageUrl: null,
     });
     const saved = await this.collectionRepository.save(collection);
     this.logger.log(`Collection created: ${saved.id}`);
@@ -357,8 +333,12 @@ export class CollectionsService {
     const collection = await this.ensureCollectionExists(id, tenantId);
 
     if (dto.name !== undefined) collection.name = dto.name;
-    if ('coverImageKey' in dto)
+    if ('coverImageKey' in dto) {
       collection.coverImageKey = dto.coverImageKey ?? null;
+      collection.coverImageUrl = collection.coverImageKey
+        ? this.s3Service.buildViewUrl(collection.coverImageKey)
+        : null;
+    }
 
     collection.updatedAt = new Date();
     await this.collectionRepository.save(collection);
@@ -373,6 +353,7 @@ export class CollectionsService {
         tenantId: collection.tenantId,
         name: collection.name,
         coverImageKey: collection.coverImageKey,
+        coverImageUrl: collection.coverImageUrl,
         updatedAt: collection.updatedAt,
       },
     );

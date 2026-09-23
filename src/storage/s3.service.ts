@@ -1,30 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  GetObjectCommand,
-  PutObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { PresignedUrlGenerationException } from './exceptions/storage.exceptions';
 import { StorageFolder } from './dto/presigned-upload.dto';
-import { CacheService } from '../common/helpers/cache.service';
-
-const S3_VIEW_URL_CACHE_RESOURCE = 's3:view-url';
 
 @Injectable()
 export class S3Service {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly uploadExpiresIn: number;
-  private readonly downloadExpiresIn: number;
+  private readonly cloudfrontBaseUrl: string;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly cacheService: CacheService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.client = new S3Client({
       region: configService.get<string>('aws.region'),
     });
@@ -33,10 +23,12 @@ export class S3Service {
       's3.uploadUrlExpiresIn',
       900,
     );
-    this.downloadExpiresIn = configService.get<number>(
-      's3.downloadUrlExpiresIn',
-      3600,
-    );
+    // Acepta el dominio con o sin esquema: "xxx.cloudfront.net" o "https://xxx.cloudfront.net/".
+    const cloudfrontDomain = configService
+      .getOrThrow<string>('s3.cloudfrontDomain')
+      .replace(/^https?:\/\//, '')
+      .replace(/\/+$/, '');
+    this.cloudfrontBaseUrl = `https://${cloudfrontDomain}`;
   }
 
   private buildProductsKey(
@@ -167,32 +159,16 @@ export class S3Service {
     }
   }
 
-  async generateViewUrl(key: string): Promise<{ viewUrl: string }> {
-    const cached = await this.cacheService.get<{ viewUrl: string }>(
-      `${S3_VIEW_URL_CACHE_RESOURCE}:${key}`,
-    );
-    if (cached) return cached;
-
-    try {
-      const command = new GetObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
-        ResponseContentDisposition: 'inline',
-      });
-
-      const viewUrl = await getSignedUrl(this.client, command, {
-        expiresIn: this.downloadExpiresIn,
-      });
-
-      const result = { viewUrl };
-      await this.cacheService.set(
-        `${S3_VIEW_URL_CACHE_RESOURCE}:${key}`,
-        result,
-        this.downloadExpiresIn * 1000,
-      );
-      return result;
-    } catch {
-      throw new PresignedUrlGenerationException();
-    }
+  /**
+   * URL pública y estable del objeto servido por CloudFront. Al no expirar,
+   * CloudFront y el cliente pueden cachear la imagen por su key.
+   */
+  buildViewUrl(key: string): string {
+    const path = key
+      .replace(/^\/+/, '')
+      .split('/')
+      .map(encodeURIComponent)
+      .join('/');
+    return `${this.cloudfrontBaseUrl}/${path}`;
   }
 }

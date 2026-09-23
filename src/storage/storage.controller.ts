@@ -48,8 +48,8 @@ export class StorageController {
 
   @Get('presigned-view')
   @Public()
-  async getViewUrl(@Query() dto: PresignedViewDto) {
-    const { viewUrl } = await this.s3Service.generateViewUrl(dto.key);
+  getViewUrl(@Query() dto: PresignedViewDto) {
+    const viewUrl = this.s3Service.buildViewUrl(dto.key);
     return {
       code: 200,
       message: 'Presigned view URL generated',

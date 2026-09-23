@@ -37,9 +37,9 @@ export const ValidationSchema = Joi.object({
   AWS_S3_UPLOAD_URL_EXPIRES_IN: Joi.number()
     .default(900)
     .description('Presigned upload URL TTL in seconds'),
-  AWS_S3_DOWNLOAD_URL_EXPIRES_IN: Joi.number()
-    .default(3600)
-    .description('Presigned download URL TTL in seconds'),
+  AWS_CLOUDFRONT_DOMAIN: Joi.string()
+    .required()
+    .description('CloudFront domain that serves the S3 bucket objects'),
 
   // Redis
   REDIS_PRIVATE_URL: Joi.string()

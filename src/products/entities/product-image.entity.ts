@@ -21,6 +21,9 @@ export class ProductImage {
   @Column('varchar', { name: 's3_key', length: 500, nullable: false })
   s3Key: string;
 
+  @Column('varchar', { name: 'url', length: 1000, nullable: true })
+  url: string | null;
+
   @Column('boolean', { name: 'is_primary', default: false })
   isPrimary: boolean;
 

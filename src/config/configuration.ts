@@ -22,10 +22,7 @@ export const s3Config = registerAs('s3', () => ({
     process.env.AWS_S3_UPLOAD_URL_EXPIRES_IN || '900',
     10,
   ),
-  downloadUrlExpiresIn: parseInt(
-    process.env.AWS_S3_DOWNLOAD_URL_EXPIRES_IN || '3600',
-    10,
-  ),
+  cloudfrontDomain: process.env.AWS_CLOUDFRONT_DOMAIN,
 }));
 
 export const dynamoConfig = registerAs('dynamo', () => ({

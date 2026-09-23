@@ -26,22 +26,6 @@ export class ProductImagesService {
     private readonly s3Service: S3Service,
   ) {}
 
-  /**
-   * Adjunta la URL prefirmada de S3 a cada imagen. `S3Service.generateViewUrl`
-   * ya cachea cada URL en Redis por s3Key (TTL = s3.downloadUrlExpiresIn), así
-   * que aquí solo se orquesta la resolución en paralelo por lista de imágenes.
-   */
-  async attachImageUrls<T extends ProductImage>(
-    images: T[],
-  ): Promise<(T & { url: string })[]> {
-    return Promise.all(
-      images.map(async (image) => {
-        const { viewUrl } = await this.s3Service.generateViewUrl(image.s3Key);
-        return { ...image, url: viewUrl };
-      }),
-    );
-  }
-
   async addImage(dto: AddProductImageDto): Promise<ProductImage> {
     const product = await this.productRepository.findOne({
       where: { id: dto.productId, tenantId: dto.tenantId, deletedAt: IsNull() },
@@ -64,6 +48,7 @@ export class ProductImagesService {
       tenantId: dto.tenantId,
       productId: dto.productId,
       s3Key: dto.s3Key,
+      url: this.s3Service.buildViewUrl(dto.s3Key),
       isPrimary: dto.isPrimary ?? false,
       sortOrder: dto.sortOrder ?? 0,
     });
@@ -81,6 +66,7 @@ export class ProductImagesService {
           {
             id: saved.id,
             s3Key: saved.s3Key,
+            url: saved.url,
             isPrimary: saved.isPrimary,
             sortOrder: saved.sortOrder,
           },

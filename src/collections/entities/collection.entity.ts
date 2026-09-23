@@ -15,6 +15,9 @@ export class Collection {
   @Column('varchar', { name: 'cover_image_key', length: 500, nullable: true })
   coverImageKey: string | null;
 
+  @Column('varchar', { name: 'cover_image_url', length: 1000, nullable: true })
+  coverImageUrl: string | null;
+
   @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
