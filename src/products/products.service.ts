@@ -146,6 +146,7 @@ export class ProductsService {
         categoryId: saved.categoryId,
         category: categoryTrace,
         name: saved.name,
+        description: saved.description,
         basePrice: saved.basePrice,
         isActive: saved.isActive,
         attributes: saved.attributes,
