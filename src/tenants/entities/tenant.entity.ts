@@ -12,6 +12,12 @@ export class Tenant {
   @Column('varchar', { length: 255, nullable: false })
   domain: string;
 
+  @Column('varchar', { name: 'logo_key', length: 500, nullable: true })
+  logoKey: string | null;
+
+  @Column('varchar', { name: 'logo_url', length: 1000, nullable: true })
+  logoUrl: string | null;
+
   @Column('timestamptz', { name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 

@@ -7,11 +7,13 @@ import { User } from '../users/entities/user.entity';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { UsersModule } from '../users/users.module';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Tenant, Role, TenantUser, User]),
     UsersModule,
+    StorageModule,
   ],
   controllers: [TenantsController],
   providers: [TenantsService],

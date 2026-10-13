@@ -39,3 +39,25 @@ export class TenantAdminRoleNotFoundException extends ApiException {
     );
   }
 }
+
+export class TenantInvalidLogoKeyException extends ApiException {
+  constructor(key: string) {
+    super(
+      18,
+      `Logo key '${key}' does not belong to this tenant`,
+      undefined,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+}
+
+export class TenantNotAssignedException extends ApiException {
+  constructor() {
+    super(
+      19,
+      'The current user has no tenant assigned',
+      undefined,
+      HttpStatus.FORBIDDEN,
+    );
+  }
+}
