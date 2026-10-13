@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
   UsePipes,
@@ -12,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
@@ -62,6 +64,24 @@ export class CategoriesController {
     return {
       code: 200,
       message: 'Category retrieved successfully',
+      data: category,
+    };
+  }
+
+  @Patch(':id')
+  async update(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
+    const category = await this.categoriesService.update(
+      id,
+      dto,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Category updated successfully',
       data: category,
     };
   }
