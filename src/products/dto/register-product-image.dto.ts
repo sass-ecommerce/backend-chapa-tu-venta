@@ -5,17 +5,10 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
 } from 'class-validator';
 
-export class AddProductImageDto {
-  @IsUUID()
-  productId: string;
-
-  @IsUUID()
-  tenantId: string;
-
+export class RegisterProductImageDto {
   @IsString()
   @IsNotEmpty()
   s3Key: string;

@@ -3,9 +3,11 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Product } from './product.entity';
+import { ProductVariantImage } from './product-variant-image.entity';
 
 // Uniqueness on (product_id, sku) WHERE deleted_at IS NULL is enforced
 // by the partial index in the migration, not by a TypeORM @Unique decorator.
@@ -43,4 +45,7 @@ export class ProductVariant {
   })
   @JoinColumn({ name: 'product_id' })
   product: Product;
+
+  @OneToMany(() => ProductVariantImage, (image) => image.variant)
+  images: ProductVariantImage[];
 }

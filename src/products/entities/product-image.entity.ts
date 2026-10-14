@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -8,6 +9,10 @@ import {
 import { Product } from './product.entity';
 
 @Entity({ name: 'product_images', schema: 'public' })
+@Index('uq_product_images_s3_key_active', ['s3Key'], {
+  unique: true,
+  where: '"deleted_at" IS NULL',
+})
 export class ProductImage {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -40,6 +40,17 @@ export class ProductCategoryMismatchException extends ApiException {
   }
 }
 
+export class ProductImageKeyMismatchException extends ApiException {
+  constructor(s3Key: string) {
+    super(
+      15,
+      `Image key '${s3Key}' does not belong to this product`,
+      undefined,
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
+  }
+}
+
 export class ProductImageNotFoundException extends ApiException {
   constructor(id: string) {
     super(
@@ -47,6 +58,39 @@ export class ProductImageNotFoundException extends ApiException {
       `Product image '${id}' not found`,
       undefined,
       HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class ProductVariantImageNotFoundException extends ApiException {
+  constructor(id: string) {
+    super(
+      16,
+      `Product variant image '${id}' not found`,
+      undefined,
+      HttpStatus.NOT_FOUND,
+    );
+  }
+}
+
+export class ProductVariantImageKeyMismatchException extends ApiException {
+  constructor(s3Key: string) {
+    super(
+      17,
+      `Image key '${s3Key}' does not belong to this variant`,
+      undefined,
+      HttpStatus.UNPROCESSABLE_ENTITY,
+    );
+  }
+}
+
+export class ProductImageListInvalidException extends ApiException {
+  constructor(reason: string) {
+    super(
+      18,
+      `Invalid image list: ${reason}`,
+      undefined,
+      HttpStatus.UNPROCESSABLE_ENTITY,
     );
   }
 }

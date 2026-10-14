@@ -14,18 +14,18 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { ProductsService, PRODUCTS_CACHE_RESOURCE } from './products.service';
+import { ProductsService } from './products.service';
 import { ProductImagesService } from './product-images.service';
-import { CacheService } from '../common/helpers/cache.service';
+import { ProductVariantImagesService } from './product-variant-images.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductVariantsDto } from './dto/create-product-variants.dto';
 import { UpdateProductVariantDto } from './dto/update-product-variant.dto';
 import { QueryProductDto } from './dto/query-product.dto';
-import { AddProductImageDto } from './dto/add-product-image.dto';
+import { RegisterProductImageDto } from './dto/register-product-image.dto';
+import { ReorderProductImagesDto } from './dto/reorder-product-images.dto';
 import { CognitoJwtGuard } from 'src/auth/guards/cognito-jwt.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { Public } from 'src/auth/decorators/public.decorator';
 import type { CognitoUser } from 'src/auth/interfaces/cognito-user.interface';
 
 @Controller('products')
@@ -41,7 +41,7 @@ export class ProductsController {
   constructor(
     private readonly productsService: ProductsService,
     private readonly productImagesService: ProductImagesService,
-    private readonly cacheService: CacheService,
+    private readonly productVariantImagesService: ProductVariantImagesService,
   ) {}
 
   @Post()
@@ -135,6 +135,78 @@ export class ProductsController {
     };
   }
 
+  @Post(':id/variants/:variantId/images')
+  async registerVariantImage(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Body() dto: RegisterProductImageDto,
+  ) {
+    const image = await this.productVariantImagesService.addImage(
+      id,
+      variantId,
+      user.tenantId!,
+      dto,
+    );
+    return {
+      code: 201,
+      message: 'Variant image registered successfully',
+      data: image,
+    };
+  }
+
+  @Patch(':id/variants/:variantId/images/order')
+  async reorderVariantImages(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+    @Body() dto: ReorderProductImagesDto,
+  ) {
+    const images = await this.productVariantImagesService.reorderImages(
+      id,
+      variantId,
+      dto.imageIds,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Variant images reordered successfully',
+      data: images,
+    };
+  }
+
+  @Get(':id/variants/:variantId/images')
+  async findVariantImages(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('variantId', ParseUUIDPipe) variantId: string,
+  ) {
+    const images = await this.productVariantImagesService.findImagesByVariant(
+      id,
+      variantId,
+      user.tenantId!,
+    );
+    return {
+      code: 200,
+      message: 'Variant images retrieved successfully',
+      data: images,
+    };
+  }
+
+  @Delete('variants/images/:id')
+  @HttpCode(HttpStatus.OK)
+  async removeVariantImage(
+    @CurrentUser() user: CognitoUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.productVariantImagesService.removeImage(id, user.tenantId!);
+    return {
+      code: 200,
+      message: 'Variant image deleted successfully',
+      data: null,
+    };
+  }
+
   @Patch(':id')
   async update(
     @CurrentUser() user: CognitoUser,
@@ -159,35 +231,6 @@ export class ProductsController {
     return {
       code: 200,
       message: 'Product deleted successfully',
-      data: null,
-    };
-  }
-
-  @Post('images')
-  @Public()
-  async addImage(@Body() dto: AddProductImageDto) {
-    const image = await this.productImagesService.addImage(dto);
-    await this.cacheService.deleteListByScope(
-      PRODUCTS_CACHE_RESOURCE,
-      dto.tenantId,
-    );
-    return {
-      code: 201,
-      message: 'Image added successfully',
-      data: image,
-    };
-  }
-
-  @Delete('images/:id')
-  @HttpCode(HttpStatus.OK)
-  async removeImage(
-    @CurrentUser() user: CognitoUser,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    await this.productImagesService.removeImage(id, user.tenantId!);
-    return {
-      code: 200,
-      message: 'Image deleted successfully',
       data: null,
     };
   }

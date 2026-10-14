@@ -21,6 +21,7 @@ import {
 } from './exceptions/product.exceptions';
 import { EventBridgeService } from '../events/eventbridge.service';
 import { CacheService } from '../common/helpers/cache.service';
+import { ProductImagesService } from './product-images.service';
 
 const PRODUCT_EVENT_SOURCE = 'ctv.products';
 export const PRODUCTS_CACHE_RESOURCE = 'products';
@@ -42,6 +43,7 @@ export class ProductsService {
     private readonly categoryRepository: Repository<Category>,
     private readonly eventBridgeService: EventBridgeService,
     private readonly cacheService: CacheService,
+    private readonly productImagesService: ProductImagesService,
   ) {}
 
   /**
@@ -128,6 +130,9 @@ export class ProductsService {
       basePrice: dto.basePrice,
       isActive: dto.isActive ?? true,
       attributes: dto.attributes ?? [],
+      // Set here rather than by the database, so it's on the same clock as
+      // the updatedAt of later edits (the read model orders events by them).
+      createdAt: new Date(),
     });
     const saved = await this.productRepository.save(product);
     this.logger.log(`Product created: ${saved.id}`);
@@ -150,6 +155,7 @@ export class ProductsService {
         basePrice: saved.basePrice,
         isActive: saved.isActive,
         attributes: saved.attributes,
+        createdAt: saved.createdAt,
       },
     );
 
@@ -347,28 +353,49 @@ export class ProductsService {
     dto: UpdateProductDto,
     tenantId: string,
   ): Promise<{ id: string }> {
-    const product = await this.productRepository.findOne({
-      where: { id, tenantId, deletedAt: IsNull() },
-    });
-    if (!product) throw new ProductNotFoundException(id);
+    const { images, ...fields } = dto;
 
-    const categoryChanged =
-      !!dto.categoryId && dto.categoryId !== product.categoryId;
+    const { product, categoryChanged } =
+      await this.productRepository.manager.transaction(async (manager) => {
+        // Locked so concurrent edits of the same product apply one after the
+        // other, and their updatedAt follows that order.
+        const product = await manager.findOne(Product, {
+          where: { id, tenantId, deletedAt: IsNull() },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!product) throw new ProductNotFoundException(id);
 
-    if (categoryChanged) {
-      await this.validateCategory(dto.categoryId!, product.tenantId);
-    }
+        const categoryChanged =
+          !!fields.categoryId && fields.categoryId !== product.categoryId;
+        if (categoryChanged) {
+          await this.validateCategory(fields.categoryId!, product.tenantId);
+        }
 
-    Object.assign(product, dto);
-    product.updatedAt = new Date();
-    await this.productRepository.save(product);
+        Object.assign(product, fields);
+        product.updatedAt = new Date();
+        await manager.save(product);
+
+        if (images) {
+          await this.productImagesService.replaceImages(
+            manager,
+            product,
+            images,
+          );
+        }
+        return { product, categoryChanged };
+      });
 
     await this.invalidateProductCache(id, tenantId);
 
-    const categoryTrace = categoryChanged
-      ? await this.getCategoryAncestors(product.categoryId, tenantId)
-      : undefined;
+    const [categoryTrace, currentImages] = await Promise.all([
+      categoryChanged
+        ? this.getCategoryAncestors(product.categoryId, tenantId)
+        : undefined,
+      this.productImagesService.findActiveImages(id),
+    ]);
 
+    // A full snapshot of the product (the category only when it changed):
+    // the read model keeps the one with the latest updatedAt.
     await this.eventBridgeService.publish(
       PRODUCT_EVENT_SOURCE,
       'product.updated',
@@ -381,6 +408,16 @@ export class ProductsService {
         description: product.description,
         basePrice: product.basePrice,
         isActive: product.isActive,
+        attributes: product.attributes,
+        images: currentImages.map(
+          ({ id, s3Key, url, isPrimary, sortOrder }) => ({
+            id,
+            s3Key,
+            url,
+            isPrimary,
+            sortOrder,
+          }),
+        ),
         updatedAt: product.updatedAt,
       },
     );
@@ -461,10 +498,7 @@ export class ProductsService {
     this.logger.log(`Product soft-deleted: ${id}`);
   }
 
-  private async invalidateProductCache(
-    id: string,
-    tenantId: string,
-  ): Promise<void> {
+  async invalidateProductCache(id: string, tenantId: string): Promise<void> {
     await Promise.all([
       this.cacheService.deleteListByScope(PRODUCTS_CACHE_RESOURCE, tenantId),
       this.cacheService.delete(
